@@ -1,0 +1,35 @@
+
+{
+  "name": "koishi-plugin-dungeoncrafter",
+  "description": "create dungeons by random",
+  "version": "1.0.0",
+  "contributors": [
+  "冷筱华 <lengxiaohua@icemoe.moe>"
+],
+  "license": "AGPL-3.0",
+  "homepage": "https://",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/alice/koishi-plugin-example.git"
+  },
+  "main": "lib/index.js",
+  "typings": "lib/index.d.ts",
+  "files": [
+    "lib",
+    "dist"
+  ],
+
+  "keywords": [
+    "chatbot",
+    "koishi",
+    "plugin",
+    "dungeon"
+  ],
+
+  "peerDependencies": {
+    "koishi": "^4.17.9"
+  },
+  "devDependencies": {
+    "koishi-plugin-markdown-to-image-service": "^1.2.1"
+  }
+}

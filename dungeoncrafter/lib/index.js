@@ -20,15 +20,21 @@ var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: tru
 // src/index.ts
 var src_exports = {};
 __export(src_exports, {
+  Config: () => Config,
   apply: () => apply,
   inject: () => inject,
   name: () => name
 });
 module.exports = __toCommonJS(src_exports);
 var import_koishi = require("koishi");
+var import_koishi2 = require("koishi");
+var Config = import_koishi.Schema.object({
+  wallColor: import_koishi.Schema.union(["🟩", "🟪", "🟧", "🟨", "🟦", "🟫", "🟥", "⬛", "⬜"]).default("⬛"),
+  pathColor: import_koishi.Schema.union(["🟩", "🟪", "🟧", "🟨", "🟦", "🟫", "🟥", "⬛", "⬜"]).default("⬜")
+});
 var inject = ["markdownToImage"];
 var name = "dungeon-crafter";
-async function apply(ctx) {
+async function apply(ctx, config) {
   let width;
   let height;
   ctx.command("生成地城 <arg1> <arg2>").action(async (_, arg1, arg2) => {
@@ -37,13 +43,13 @@ async function apply(ctx) {
     if (isNaN(width) || isNaN(height)) {
       return "Invalid dimensions provided.";
     }
-    let dungeonMap = generateMaze(width, height);
-    let crx = await writeToFile(dungeonMap, ctx);
-    return import_koishi.h.image(crx, "image/png");
+    let dungeonMap = generateMaze(width, height, config);
+    let crx = await writeToFile(dungeonMap, ctx, config);
+    return import_koishi2.h.image(crx, "image/png");
   });
-  function generateMaze(width2, height2) {
-    const WALL = "⬛";
-    const PATH = "⬜";
+  function generateMaze(width2, height2, config2) {
+    const WALL = config2.wallColor;
+    const PATH = config2.pathColor;
     let maze = Array.from({ length: height2 }, () => Array(width2).fill(WALL));
     function carve(x, y) {
       const directions = [
@@ -96,7 +102,7 @@ async function apply(ctx) {
     return maze;
   }
   __name(generateMaze, "generateMaze");
-  async function writeToFile(map, ctx2) {
+  async function writeToFile(map, ctx2, config2) {
     const markdownMap = map.map((row) => row.join("")).join("\n");
     const imageBuffer = await ctx2.markdownToImage.convertToImage(markdownMap);
     return imageBuffer;
@@ -106,6 +112,7 @@ async function apply(ctx) {
 __name(apply, "apply");
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
+  Config,
   apply,
   inject,
   name

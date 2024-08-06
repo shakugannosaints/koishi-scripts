@@ -1,30 +1,45 @@
-import { Context } from 'koishi'
+import { Context, Schema } from 'koishi'
 import { h } from 'koishi'
 import { } from 'koishi-plugin-markdown-to-image-service'
+
+
+// 定义配置项接口
+export interface Config {
+  wallColor: "🟩" | "🟪" | "🟧" | "🟨" | "🟦" | "🟫" | "🟥" | "⬛" | "⬜"
+  pathColor: "🟩" | "🟪" | "🟧" | "🟨" | "🟦" | "🟫" | "🟥" | "⬛" | "⬜"
+}
+
+// 使用 schemastery 定义配置项
+export const Config: Schema<Config> = Schema.object({
+  wallColor: Schema.union(['🟩', '🟪', '🟧', '🟨', '🟦', '🟫', '🟥','⬛','⬜']).default('⬛'),
+  pathColor: Schema.union(['🟩', '🟪', '🟧', '🟨', '🟦', '🟫', '🟥','⬛','⬜']).default('⬜'),
+})
+
 export const inject = ['markdownToImage']
 export const name = 'dungeon-crafter'
-export async function apply(ctx: Context) {
-  let width: number;
-  let height: number;
+
+export async function apply(ctx: Context, config: Config) {
+  let width: number
+  let height: number
 
   ctx.command('生成地城 <arg1> <arg2>')
     .action(async (_, arg1, arg2) => {
-      width = parseInt(arg1);
-      height = parseInt(arg2);
-
+      width = parseInt(arg1)
+      height = parseInt(arg2)
       if (isNaN(width) || isNaN(height)) {
-        return ('Invalid dimensions provided.');
+        return 'Invalid dimensions provided.'
       }
-      let dungeonMap = generateMaze(width, height);
-      let crx = await writeToFile(dungeonMap, ctx);
-      return h.image(crx,'image/png');
-    });
-//generate maze to dungeon
-    function generateMaze(width: number, height: number): string[][] {
-      const WALL = '⬛';
-      const PATH = '⬜';
-      let maze = Array.from({ length: height }, () => Array(width).fill(WALL));
-    
+
+      let dungeonMap = generateMaze(width, height, config)
+      let crx = await writeToFile(dungeonMap, ctx, config)
+      return h.image(crx, 'image/png')
+    })
+
+  // 生成迷宫并应用颜色
+  function generateMaze(width: number, height: number, config: Config): string[][] {
+    const WALL = config.wallColor
+    const PATH = config.pathColor
+    let maze = Array.from({ length: height }, () => Array(width).fill(WALL))
       function carve(x: number, y: number) {
         const directions = [
           [0, 2],
@@ -82,10 +97,10 @@ export async function apply(ctx: Context) {
       return maze;
     }
 
-  // Write the map to a file
-  async function writeToFile(map: string[][], ctx: Context) {
-    const markdownMap = map.map(row => row.join('')).join('\n');
-    const imageBuffer = await ctx.markdownToImage.convertToImage(markdownMap);
-    return imageBuffer;
+  // 写入文件的函数也需要更新以处理颜色
+  async function writeToFile(map: string[][], ctx: Context, config: Config) {
+    const markdownMap = map.map(row => row.join('')).join('\n')
+    const imageBuffer = await ctx.markdownToImage.convertToImage(markdownMap)
+    return imageBuffer
   }
 }

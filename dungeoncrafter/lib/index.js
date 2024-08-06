@@ -37,17 +37,19 @@ var name = "dungeon-crafter";
 async function apply(ctx, config) {
   let width;
   let height;
-  ctx.command("生成地城 <arg1> <arg2>").action(async (_, arg1, arg2) => {
-    width = parseInt(arg1);
-    height = parseInt(arg2);
+  let property = 0.1;
+  ctx.command("生成地城 <arg1> <arg2> <arg3>").action(async (_, arg1, arg2, arg3) => {
+    width = arg1 ? parseInt(arg1) : 25;
+    height = arg2 ? parseInt(arg2) : 25;
+    property = arg3 ? parseFloat(arg3) : 0.1;
     if (isNaN(width) || isNaN(height)) {
       return "Invalid dimensions provided.";
     }
-    let dungeonMap = generateMaze(width, height, config);
-    let crx = await writeToFile(dungeonMap, ctx, config);
-    return import_koishi2.h.image(crx, "image/png");
+    let dungeonMap = generateMaze(width, height, property, config);
+    let imageBuffer = await writeToFile(dungeonMap, ctx, config);
+    return import_koishi2.h.image(imageBuffer, "image/png");
   });
-  function generateMaze(width2, height2, config2) {
+  function generateMaze(width2, height2, property2, config2) {
     const WALL = config2.wallColor;
     const PATH = config2.pathColor;
     let maze = Array.from({ length: height2 }, () => Array(width2).fill(WALL));
@@ -59,7 +61,7 @@ async function apply(ctx, config) {
         [-2, 0]
       ];
       shuffle(directions);
-      if (Math.random() < 0.1) {
+      if (Math.random() < property2) {
         createRoom(x, y);
       } else {
         directions.forEach(([dx, dy]) => {

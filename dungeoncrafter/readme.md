@@ -4,8 +4,8 @@
 
 create dungeons by random  
 
-usage: 生成地城 num num  
+usage: `生成地城 num num`  
 
-example: .生成地城 25 25  
+example: `.生成地城 25 25 ` 
 
 config: you can change wall and path colors in config

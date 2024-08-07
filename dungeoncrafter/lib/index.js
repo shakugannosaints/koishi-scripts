@@ -52,28 +52,32 @@ async function apply(ctx, config) {
     const WALL = config2.wallColor;
     const PATH = config2.pathColor;
     let maze = Array.from({ length: height2 }, () => Array(width2).fill(WALL));
-    function carve(x, y) {
-      const directions = [
-        [0, 2],
-        [2, 0],
-        [0, -2],
-        [-2, 0]
-      ];
-      shuffle(directions);
-      if (Math.random() < property2) {
-        createRoom(x, y);
-      } else {
-        directions.forEach(([dx, dy]) => {
-          const nx = x + dx;
-          const ny = y + dy;
-          const mx = x + dx / 2;
-          const my = y + dy / 2;
-          if (nx > 0 && nx < width2 && ny > 0 && ny < height2 && maze[ny][nx] === WALL) {
-            maze[ny][nx] = PATH;
-            maze[my][mx] = PATH;
-            carve(nx, ny);
-          }
-        });
+    function carve(startX, startY) {
+      const stack = [[startX, startY]];
+      while (stack.length > 0) {
+        const [x, y] = stack.pop();
+        const directions = [
+          [0, 2],
+          [2, 0],
+          [0, -2],
+          [-2, 0]
+        ];
+        shuffle(directions);
+        if (Math.random() < property2) {
+          createRoom(x, y);
+        } else {
+          directions.forEach(([dx, dy]) => {
+            const nx = x + dx;
+            const ny = y + dy;
+            const mx = x + dx / 2;
+            const my = y + dy / 2;
+            if (nx > 0 && nx < width2 && ny > 0 && ny < height2 && maze[ny][nx] === WALL) {
+              maze[ny][nx] = PATH;
+              maze[my][mx] = PATH;
+              stack.push([nx, ny]);
+            }
+          });
+        }
       }
     }
     __name(carve, "carve");

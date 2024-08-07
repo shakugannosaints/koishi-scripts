@@ -1,7 +1,7 @@
 {
   "name": "koishi-plugin-dungeoncrafter",
   "description": "create dungeons by random",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "contributors": [
     "冷筱华 <lengxiaohua@icemoe.moe>"
   ],

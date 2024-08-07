@@ -41,33 +41,36 @@ export async function apply(ctx: Context, config: Config) {
     const PATH = config.pathColor
     let maze = Array.from({ length: height }, () => Array(width).fill(WALL))
 
-    function carve(x: number, y: number) {
-      const directions = [
-        [0, 2],
-        [2, 0],
-        [0, -2],
-        [-2, 0],
-      ];
-      shuffle(directions);
-
-      if (Math.random() < property) {
-        createRoom(x, y);
-      } else {
-        directions.forEach(([dx, dy]) => {
-          const nx = x + dx;
-          const ny = y + dy;
-          const mx = x + dx / 2;
-          const my = y + dy / 2;
-
-          if (nx > 0 && nx < width && ny > 0 && ny < height && maze[ny][nx] === WALL) {
-            maze[ny][nx] = PATH;
-            maze[my][mx] = PATH;
-            carve(nx, ny);
-          }
-        });
+    function carve(startX: number, startY: number) {
+      const stack: [number, number][] = [[startX, startY]];
+      while (stack.length > 0) {
+        const [x, y] = stack.pop()!;
+        const directions = [
+          [0, 2],
+          [2, 0],
+          [0, -2],
+          [-2, 0],
+        ];
+        shuffle(directions);
+    
+        if (Math.random() < property) {
+          createRoom(x, y);
+        } else {
+          directions.forEach(([dx, dy]) => {
+            const nx = x + dx;
+            const ny = y + dy;
+            const mx = x + dx / 2;
+            const my = y + dy / 2;
+    
+            if (nx > 0 && nx < width && ny > 0 && ny < height && maze[ny][nx] === WALL) {
+              maze[ny][nx] = PATH;
+              maze[my][mx] = PATH;
+              stack.push([nx, ny]);
+            }
+          });
+        }
       }
     }
-
     function createRoom(x: number, y: number) {
       const roomWidth = Math.floor(Math.random() * 3) + 3;
       const roomHeight = Math.floor(Math.random() * 3) + 3;

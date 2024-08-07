@@ -1,7 +1,7 @@
 {
   "name": "koishi-plugin-dungeoncrafter",
   "description": "create dungeons by random",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "contributors": [
     "冷筱华 <lengxiaohua@icemoe.moe>"
   ],
@@ -26,6 +26,6 @@
     "koishi": "^4.17.9"
   },
   "devDependencies": {
-    "koishi-plugin-markdown-to-image-service": "^1.2.1"
+    "@koishijs/canvas": "^0.2.0"
   }
 }

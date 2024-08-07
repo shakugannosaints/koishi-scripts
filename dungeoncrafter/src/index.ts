@@ -1,21 +1,19 @@
 import { Context, Schema } from 'koishi'
-import { h } from 'koishi'
-import { } from 'koishi-plugin-markdown-to-image-service'
+import { } from '@koishijs/canvas'
 
-
-// 定义配置项接口
+// Define the configuration interface
 export interface Config {
-  wallColor: "🟩" | "🟪" | "🟧" | "🟨" | "🟦" | "🟫" | "🟥" | "⬛" | "⬜"
-  pathColor: "🟩" | "🟪" | "🟧" | "🟨" | "🟦" | "🟫" | "🟥" | "⬛" | "⬜"
+  wallColor: "green" | "purple" | "orange" | "yellow" | "blue" | "brown" | "red" | "black" | "white"
+  pathColor: "green" | "purple" | "orange" | "yellow" | "blue" | "brown" | "red" | "black" | "white"
 }
 
-// 使用 schemastery 定义配置项
+// Define the configuration schema using schemastery
 export const Config: Schema<Config> = Schema.object({
-  wallColor: Schema.union(['🟩', '🟪', '🟧', '🟨', '🟦', '🟫', '🟥','⬛','⬜']).default('⬛'),
-  pathColor: Schema.union(['🟩', '🟪', '🟧', '🟨', '🟦', '🟫', '🟥','⬛','⬜']).default('⬜'),
+  wallColor: Schema.union(['green', 'purple', 'orange', 'yellow', 'blue', 'brown', 'red', 'black', 'white']).default('black'),
+  pathColor: Schema.union(['green', 'purple', 'orange', 'yellow', 'blue', 'brown', 'red', 'black', 'white']).default('white'),
 })
 
-export const inject = ['markdownToImage']
+export const inject = ['canvas']
 export const name = 'dungeon-crafter'
 
 export async function apply(ctx: Context, config: Config) {
@@ -34,11 +32,10 @@ export async function apply(ctx: Context, config: Config) {
       }
 
       let dungeonMap = generateMaze(width, height, property, config)
-      let imageBuffer = await writeToFile(dungeonMap, ctx, config)
-      return h.image(imageBuffer, 'image/png')
+      let imageBuffer = await writeToFile(dungeonMap, config)
+      return imageBuffer
     })
 
-  // 生成迷宫并应用颜色
   function generateMaze(width: number, height: number, property: number, config: Config): string[][] {
     const WALL = config.wallColor
     const PATH = config.pathColor
@@ -53,7 +50,6 @@ export async function apply(ctx: Context, config: Config) {
       ];
       shuffle(directions);
 
-      // Randomly decide whether to create a room
       if (Math.random() < property) {
         createRoom(x, y);
       } else {
@@ -100,10 +96,21 @@ export async function apply(ctx: Context, config: Config) {
     return maze;
   }
 
-  // 写入文件的函数也需要更新以处理颜色
-  async function writeToFile(map: string[][], ctx: Context, config: Config) {
-    const markdownMap = map.map(row => row.join('')).join('\n')
-    const imageBuffer = await ctx.markdownToImage.convertToImage(markdownMap)
-    return imageBuffer
+  async function writeToFile(map: string[][], config: Config) {
+    const cellSize = 20; // Define the size of each cell
+    const width = map[0].length * cellSize;
+    const height = map.length * cellSize;
+  
+    // 使用 @koishijs/canvas 的 createCanvas 方法
+    return ctx.canvas.render(width, height, (ctx) => {
+      const WALL_COLOR = config.wallColor;
+      const PATH_COLOR = config.pathColor;
+      map.forEach((row, y) => {
+        row.forEach((cell, x) => {
+          ctx.fillStyle = cell === WALL_COLOR ? WALL_COLOR : PATH_COLOR;
+          ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
+        });
+      });
+    });
   }
 }

@@ -27,12 +27,11 @@ __export(src_exports, {
 });
 module.exports = __toCommonJS(src_exports);
 var import_koishi = require("koishi");
-var import_koishi2 = require("koishi");
 var Config = import_koishi.Schema.object({
-  wallColor: import_koishi.Schema.union(["🟩", "🟪", "🟧", "🟨", "🟦", "🟫", "🟥", "⬛", "⬜"]).default("⬛"),
-  pathColor: import_koishi.Schema.union(["🟩", "🟪", "🟧", "🟨", "🟦", "🟫", "🟥", "⬛", "⬜"]).default("⬜")
+  wallColor: import_koishi.Schema.union(["green", "purple", "orange", "yellow", "blue", "brown", "red", "black", "white"]).default("black"),
+  pathColor: import_koishi.Schema.union(["green", "purple", "orange", "yellow", "blue", "brown", "red", "black", "white"]).default("white")
 });
-var inject = ["markdownToImage"];
+var inject = ["canvas"];
 var name = "dungeon-crafter";
 async function apply(ctx, config) {
   let width;
@@ -46,8 +45,8 @@ async function apply(ctx, config) {
       return "Invalid dimensions provided.";
     }
     let dungeonMap = generateMaze(width, height, property, config);
-    let imageBuffer = await writeToFile(dungeonMap, ctx, config);
-    return import_koishi2.h.image(imageBuffer, "image/png");
+    let imageBuffer = await writeToFile(dungeonMap, config);
+    return imageBuffer;
   });
   function generateMaze(width2, height2, property2, config2) {
     const WALL = config2.wallColor;
@@ -104,10 +103,20 @@ async function apply(ctx, config) {
     return maze;
   }
   __name(generateMaze, "generateMaze");
-  async function writeToFile(map, ctx2, config2) {
-    const markdownMap = map.map((row) => row.join("")).join("\n");
-    const imageBuffer = await ctx2.markdownToImage.convertToImage(markdownMap);
-    return imageBuffer;
+  async function writeToFile(map, config2) {
+    const cellSize = 20;
+    const width2 = map[0].length * cellSize;
+    const height2 = map.length * cellSize;
+    return ctx.canvas.render(width2, height2, (ctx2) => {
+      const WALL_COLOR = config2.wallColor;
+      const PATH_COLOR = config2.pathColor;
+      map.forEach((row, y) => {
+        row.forEach((cell, x) => {
+          ctx2.fillStyle = cell === WALL_COLOR ? WALL_COLOR : PATH_COLOR;
+          ctx2.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
+        });
+      });
+    });
   }
   __name(writeToFile, "writeToFile");
 }

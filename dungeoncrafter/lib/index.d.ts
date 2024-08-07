@@ -1,7 +1,7 @@
 import { Context, Schema } from 'koishi';
 export interface Config {
-    wallColor: "🟩" | "🟪" | "🟧" | "🟨" | "🟦" | "🟫" | "🟥" | "⬛" | "⬜";
-    pathColor: "🟩" | "🟪" | "🟧" | "🟨" | "🟦" | "🟫" | "🟥" | "⬛" | "⬜";
+    wallColor: "green" | "purple" | "orange" | "yellow" | "blue" | "brown" | "red" | "black" | "white";
+    pathColor: "green" | "purple" | "orange" | "yellow" | "blue" | "brown" | "red" | "black" | "white";
 }
 export declare const Config: Schema<Config>;
 export declare const inject: string[];

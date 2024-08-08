@@ -127,33 +127,48 @@ export async function apply(ctx: Context, config: Config) {
     const width = map[0].length * cellSize;
     const height = map.length * cellSize;
   
+    // Helper function to get the opposite color in RGBA format
+    function getOppositeColor(color: string): string {
+      const [r, g, b] = color.match(/\d+/g)?.map(Number) ?? [0, 0, 0];
+      return `rgba(${255 - r}, ${255 - g}, ${255 - b}, 1)`;
+    }
+  
     return ctx.canvas.render(width, height, (ctx) => {
       const WALL_COLOR = config.wallColor;
       const PATH_COLOR = config.pathColor;
-      const GRID_COLOR = '#888'; 
+      const WALL_GRID_COLOR = getOppositeColor(WALL_COLOR);
+      const PATH_GRID_COLOR = getOppositeColor(PATH_COLOR);
   
-      // Draw grid lines
-      for (let x = 0; x <= width; x += cellSize) {
-        ctx.strokeStyle = GRID_COLOR;
-        ctx.beginPath();
-        ctx.moveTo(x, 0);
-        ctx.lineTo(x, height);
-        ctx.stroke();
-      }
-      for (let y = 0; y <= height; y += cellSize) {
-        ctx.strokeStyle = GRID_COLOR;
-        ctx.beginPath();
-        ctx.moveTo(0, y);
-        ctx.lineTo(width, y);
-        ctx.stroke();
-      }
       // Draw the actual cells
       map.forEach((row, y) => {
         row.forEach((cell, x) => {
           ctx.fillStyle = cell === WALL_COLOR ? WALL_COLOR : PATH_COLOR;
           ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
+          
+          // Draw grid lines for walls
+          if (cell === WALL_COLOR) {
+            ctx.strokeStyle = WALL_GRID_COLOR;
+            ctx.beginPath();
+            ctx.moveTo(x * cellSize, y * cellSize);
+            ctx.lineTo((x + 1) * cellSize, y * cellSize);
+            ctx.moveTo(x * cellSize, y * cellSize);
+            ctx.lineTo(x * cellSize, (y + 1) * cellSize);
+            ctx.stroke();
+          }
+  
+          // Draw grid lines for paths
+          if (cell === PATH_COLOR) {
+            ctx.strokeStyle = PATH_GRID_COLOR;
+            ctx.beginPath();
+            ctx.moveTo(x * cellSize, y * cellSize);
+            ctx.lineTo((x + 1) * cellSize, y * cellSize);
+            ctx.moveTo(x * cellSize, y * cellSize);
+            ctx.lineTo(x * cellSize, (y + 1) * cellSize);
+            ctx.stroke();
+          }
         });
       });
+
     });
   }
 }

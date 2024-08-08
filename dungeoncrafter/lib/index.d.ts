@@ -1,7 +1,7 @@
 import { Context, Schema } from 'koishi';
 export interface Config {
-    wallColor: "green" | "purple" | "orange" | "yellow" | "blue" | "brown" | "red" | "black" | "white";
-    pathColor: "green" | "purple" | "orange" | "yellow" | "blue" | "brown" | "red" | "black" | "white";
+    wallColor: string;
+    pathColor: string;
     RoomMin: number;
     RoomMax: number;
 }

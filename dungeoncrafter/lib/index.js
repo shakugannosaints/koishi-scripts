@@ -28,8 +28,8 @@ __export(src_exports, {
 module.exports = __toCommonJS(src_exports);
 var import_koishi = require("koishi");
 var Config = import_koishi.Schema.object({
-  wallColor: import_koishi.Schema.union(["green", "purple", "orange", "yellow", "blue", "brown", "red", "black", "white"]).default("black"),
-  pathColor: import_koishi.Schema.union(["green", "purple", "orange", "yellow", "blue", "brown", "red", "black", "white"]).default("white"),
+  wallColor: import_koishi.Schema.string().role("color"),
+  pathColor: import_koishi.Schema.string().role("color"),
   RoomMin: import_koishi.Schema.number().min(1).max(100).default(3),
   RoomMax: import_koishi.Schema.number().min(1).max(100).default(5)
 });
@@ -38,7 +38,7 @@ var name = "dungeon-crafter";
 async function apply(ctx, config) {
   let width;
   let height;
-  let property = 0.1;
+  let property;
   ctx.command("生成地城 <arg1> <arg2> <arg3>").action(async (_, arg1, arg2, arg3) => {
     width = arg1 ? parseInt(arg1) : 25;
     height = arg2 ? parseInt(arg2) : 25;

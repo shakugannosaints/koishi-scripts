@@ -3,16 +3,17 @@ import { } from '@koishijs/canvas'
 
 // Define the configuration interface
 export interface Config {
-  wallColor: "green" | "purple" | "orange" | "yellow" | "blue" | "brown" | "red" | "black" | "white"
-  pathColor: "green" | "purple" | "orange" | "yellow" | "blue" | "brown" | "red" | "black" | "white"
+  wallColor: string
+  pathColor: string
   RoomMin: number
   RoomMax: number
 }
 
 // Define the configuration schema using schemastery
 export const Config: Schema<Config> = Schema.object({
-  wallColor: Schema.union(['green', 'purple', 'orange', 'yellow', 'blue', 'brown', 'red', 'black', 'white']).default('black'),
-  pathColor: Schema.union(['green', 'purple', 'orange', 'yellow', 'blue', 'brown', 'red', 'black', 'white']).default('white'),
+  
+  wallColor: Schema.string().role('color'),
+  pathColor: Schema.string().role('color'),
   RoomMin: Schema.number().min(1).max(100).default(3),
   RoomMax: Schema.number().min(1).max(100).default(5)
 })
@@ -23,7 +24,7 @@ export const name = 'dungeon-crafter'
 export async function apply(ctx: Context, config: Config) {
   let width: number
   let height: number
-  let property: number = 0.1 // Default value
+  let property: number
 
   ctx.command('生成地城 <arg1> <arg2> <arg3>')
     .action(async (_, arg1, arg2, arg3) => {

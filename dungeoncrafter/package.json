@@ -1,12 +1,12 @@
 {
   "name": "koishi-plugin-dungeoncrafter",
   "description": "create dungeons by random",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "contributors": [
     "冷筱华 <lengxiaohua@icemoe.moe>"
   ],
   "license": "AGPL-3.0",
-  "homepage": "https://koishi.icemoe.moe",
+  "homepage": "https://koishi.icemoe.moe/Koishi/DungeonCrafter.html",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/shakugannosaints/koishi-scripts.git"

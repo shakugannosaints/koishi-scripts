@@ -77,13 +77,13 @@ writeToFile(map: string[][], config: Config)
 
 #### 地城地图生成
 
-当执行该命令时，插件将生成一个地城的地图并将其转换为图像。图像将以指定的墙和路径颜色用canvas渲染后显示
+当执行该命令时，插件将生成一个地城的地图并将其转换为图像。图像将以指定的墙和路径颜色用canvas渲染后显示。代码将会在每个墙体和路径格子边缘生成与格子颜色相反的边框以确保辨识度
 
 #### 示例输出
 
-一个使用默认设置输出的地城：
+一个使用自定义设置输出的地城：
 
-![maze.png](https://s2.loli.net/2024/08/08/UfX3kRNGBuvpgLD.png)
+![example](https://s2.loli.net/2024/08/09/rSzQeUwBsWhpEvV.png)
 
 ## 更多
 

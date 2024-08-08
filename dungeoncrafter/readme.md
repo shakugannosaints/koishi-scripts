@@ -1,13 +1,90 @@
-# koishi-plugin-dungeoncrafter
+---
+outline: deep
+---
 
-[![npm](https://img.shields.io/npm/v/koishi-plugin-dungeoncrafter?style=flat-square)](https://www.npmjs.com/package/koishi-plugin-dungeoncrafter)
+# Dungeon Crafter 说明文档
 
-create dungeons by random  
+总之就是`DungeonCrafter`的说明文档，解释了代码的运作和需要注意的事情
 
-usage: `生成地城 <int> <int> <float>`  
+## 为什么叫这个名字？
 
-example: `.生成地城 25 25 0.1`  
+因为有一个软件名字叫DungeonDraft，然后我想叫DungeonCraft，再想了想感觉有点律师函警告，所以选择了DungeronCrafter——正好也体现了这个插件草台班子的特性
 
-explane: 生成一个25*25的随机地城。0.1控制生成房间概率。该参数为0时不会生成任何房间，也即会输出一个纯粹的，每条path只有1宽度的迷宫。不要试图生成四位数级别边长的地城。never
+## 这插件是干啥的？
 
-config: 你可以在设置里配置墙体和地面的颜色，控制房间最小边长和最大边长
+`DungeonCrafter` 是基于简单的迷宫算法拓展而来的地城生成器。当然它也可以通过调整参数来生成一个原生态的迷宫。是的，就是那种很无聊的程序生成的小迷宫
+
+### 用法
+
+```sh
+生成地城 <arg1> <arg2> <arg3>
+```
+
+- **arg1**: 迷宫的宽度 (默认值: 25)。单位“格”。最好别让它超过500。永远别让它超过1000
+- **arg2**: 迷宫的高度，其他的和宽度一样
+- **arg3**: 生成“房间”的概率。默认为0.1，也就是每次生成格子的时候有10%可能变成房间
+
+### 示例
+
+生成一个长宽均为30格，房间“非常多”（20%概率）的地城
+
+```sh
+生成地城 30 30 0.2
+```
+
+### 插件选项
+
+你可以在Koishi的插件配置中设置下面的内容
+
+- **墙的颜色**: 地城墙体颜色，默认为黑色
+- **过道颜色**: 地城过道颜色，默认为白色
+- **房间最小边长**: 房间的最小边长，推荐值3
+- **房间最大边长**: 房间的最大边长，推荐值5
+- **迷宫最大长宽**：迷宫的最大长宽，推荐值500
+- **迷宫最小长宽**：迷宫的最小长宽，推荐值3
+
+### 代码解释
+
+（下面的内容就是感觉文档内容太少所以写的，除非你对这个非常简单的实现感兴趣否则不用看）该插件使用以下函数生成地牢：
+
+```sh
+generateMaze(width: number, height: number, property: number, config: Config): string[][]
+```
+
+生成一个二维数组，表示地城的地图，其中每个单元格可以是墙体（wall）或过道（path）
+
+- **参数**:
+  - `width`: 地城宽度
+  - `height`: 地城高度
+  - `property`: 在给定位置创建房间的概率。（为什么是property？因为一开始是用这个来生成宝箱的）
+  - `config`: 墙体和过道的颜色配置，以及房间大小控制
+
+- **Returns**: 一个二维数组，每个元素代表地城里的一个格子。 墙是`wallColor`, 过道是`pathColor`.
+
+```sh
+writeToFile(map: string[][], config: Config)
+```
+
+将生成的地城的map转换为图像buffer
+
+- **参数**:
+  - `map`: 表示地城地图的二维矩阵
+  - `config`: 包含墙和路径颜色的配置对象以及房间最大边长、最小边长控制
+
+- **Returns**: 一个图像buffer，保存生成的地城
+
+### 结果
+
+#### 地城地图生成
+
+当执行该命令时，插件将生成一个地城的地图并将其转换为图像。图像将以指定的墙和路径颜色用canvas渲染后显示
+
+#### 示例输出
+
+一个使用默认设置输出的地城：
+
+![maze.png](https://s2.loli.net/2024/08/08/UfX3kRNGBuvpgLD.png)
+
+## 更多
+
+没了

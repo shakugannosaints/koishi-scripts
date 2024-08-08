@@ -30,13 +30,16 @@ export async function apply(ctx: Context, config: Config) {
   let height: number
   let property: number
 
-  ctx.command('生成地城 <arg1> <arg2> <arg3>')
-    .action(async ({session}, arg1, arg2, arg3) => {
+  ctx.command('生成地城 <width:number> <height:number> <property:number>')
+    .action(async ({ session/*, args, options*/}, arg1, arg2, arg3) => {
       const memin = config.mazeMin;
       const memax = config.mazeMax;
-      width = arg1 ? parseInt(arg1) : 25;
-      height = arg2 ? parseInt(arg2) : 25;
-      property = arg3 ? parseFloat(arg3) : 0.1;
+      width = arg1 ?? memin
+      height = arg2 ?? memin
+      property = arg3 ?? 0.1;
+      //调试代码
+      //session.send(`options=`+JSON.stringify(options))
+      //session.send(`args=`+JSON.stringify(args))
       if (isNaN(width) || isNaN(height)) {
         return 'Invalid dimensions provided.'
       }

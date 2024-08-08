@@ -29,7 +29,9 @@ module.exports = __toCommonJS(src_exports);
 var import_koishi = require("koishi");
 var Config = import_koishi.Schema.object({
   wallColor: import_koishi.Schema.union(["green", "purple", "orange", "yellow", "blue", "brown", "red", "black", "white"]).default("black"),
-  pathColor: import_koishi.Schema.union(["green", "purple", "orange", "yellow", "blue", "brown", "red", "black", "white"]).default("white")
+  pathColor: import_koishi.Schema.union(["green", "purple", "orange", "yellow", "blue", "brown", "red", "black", "white"]).default("white"),
+  RoomMin: import_koishi.Schema.number().min(1).max(100).default(3),
+  RoomMax: import_koishi.Schema.number().min(1).max(100).default(5)
 });
 var inject = ["canvas"];
 var name = "dungeon-crafter";
@@ -82,8 +84,10 @@ async function apply(ctx, config) {
     }
     __name(carve, "carve");
     function createRoom(x, y) {
-      const roomWidth = Math.floor(Math.random() * 3) + 3;
-      const roomHeight = Math.floor(Math.random() * 3) + 3;
+      const min = config2.RoomMin;
+      const max = config2.RoomMax;
+      const roomWidth = Math.floor(Math.random() * (max - min)) + min;
+      const roomHeight = Math.floor(Math.random() * (max - min)) + min;
       const startX = x - Math.floor(roomWidth / 2);
       const startY = y - Math.floor(roomHeight / 2);
       for (let i = startY; i < startY + roomHeight; i++) {

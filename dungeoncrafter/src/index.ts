@@ -5,12 +5,16 @@ import { } from '@koishijs/canvas'
 export interface Config {
   wallColor: "green" | "purple" | "orange" | "yellow" | "blue" | "brown" | "red" | "black" | "white"
   pathColor: "green" | "purple" | "orange" | "yellow" | "blue" | "brown" | "red" | "black" | "white"
+  RoomMin: number
+  RoomMax: number
 }
 
 // Define the configuration schema using schemastery
 export const Config: Schema<Config> = Schema.object({
   wallColor: Schema.union(['green', 'purple', 'orange', 'yellow', 'blue', 'brown', 'red', 'black', 'white']).default('black'),
   pathColor: Schema.union(['green', 'purple', 'orange', 'yellow', 'blue', 'brown', 'red', 'black', 'white']).default('white'),
+  RoomMin: Schema.number().min(1).max(100).default(3),
+  RoomMax: Schema.number().min(1).max(100).default(5)
 })
 
 export const inject = ['canvas']
@@ -72,8 +76,10 @@ export async function apply(ctx: Context, config: Config) {
       }
     }
     function createRoom(x: number, y: number) {
-      const roomWidth = Math.floor(Math.random() * 3) + 3;
-      const roomHeight = Math.floor(Math.random() * 3) + 3;
+      const min = config.RoomMin;
+      const max = config.RoomMax;
+      const roomWidth = Math.floor(Math.random() * (max-min)) + min;
+      const roomHeight = Math.floor(Math.random() * (max-min)) + min;
       const startX = x - Math.floor(roomWidth / 2);
       const startY = y - Math.floor(roomHeight / 2);
 

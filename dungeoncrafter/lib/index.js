@@ -30,8 +30,10 @@ var import_koishi = require("koishi");
 var Config = import_koishi.Schema.object({
   wallColor: import_koishi.Schema.string().role("color"),
   pathColor: import_koishi.Schema.string().role("color"),
-  RoomMin: import_koishi.Schema.number().min(1).max(100).default(3),
-  RoomMax: import_koishi.Schema.number().min(1).max(100).default(5)
+  RoomMin: import_koishi.Schema.number().min(1).max(500).default(3),
+  RoomMax: import_koishi.Schema.number().min(1).max(500).default(5),
+  mazeMax: import_koishi.Schema.number().min(2).max(850).default(500),
+  mazeMin: import_koishi.Schema.number().min(2).max(850).default(500)
 });
 var inject = ["canvas"];
 var name = "dungeon-crafter";
@@ -39,12 +41,26 @@ async function apply(ctx, config) {
   let width;
   let height;
   let property;
-  ctx.command("生成地城 <arg1> <arg2> <arg3>").action(async (_, arg1, arg2, arg3) => {
+  ctx.command("生成地城 <arg1> <arg2> <arg3>").action(async ({ session }, arg1, arg2, arg3) => {
+    const memin = config.mazeMin;
+    const memax = config.mazeMax;
     width = arg1 ? parseInt(arg1) : 25;
     height = arg2 ? parseInt(arg2) : 25;
     property = arg3 ? parseFloat(arg3) : 0.1;
     if (isNaN(width) || isNaN(height)) {
       return "Invalid dimensions provided.";
+    }
+    if (width < memin || width > memax) {
+      width = 25;
+      session.send("输入无效，已重设宽度为25");
+    }
+    if (height < memin || height > memax) {
+      height = 25;
+      session.send("输入无效，已重设高度为25");
+    }
+    if (property < 0 || property >= 1) {
+      property = 0.1;
+      session.send("输入无效，已重设房间生成概率为0.1");
     }
     let dungeonMap = generateMaze(width, height, property, config);
     let imageBuffer = await writeToFile(dungeonMap, config);

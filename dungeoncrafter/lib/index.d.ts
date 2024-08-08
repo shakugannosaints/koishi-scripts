@@ -4,6 +4,8 @@ export interface Config {
     pathColor: string;
     RoomMin: number;
     RoomMax: number;
+    mazeMax: number;
+    mazeMin: number;
 }
 export declare const Config: Schema<Config>;
 export declare const inject: string[];

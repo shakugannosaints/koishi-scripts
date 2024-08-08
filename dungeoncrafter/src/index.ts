@@ -19,7 +19,7 @@ export const Config: Schema<Config> = Schema.object({
   RoomMin: Schema.number().min(1).max(500).default(3),
   RoomMax: Schema.number().min(1).max(500).default(5),
   mazeMax: Schema.number().min(2).max(850).default(500),
-  mazeMin: Schema.number().min(2).max(850).default(500)
+  mazeMin: Schema.number().min(2).max(850).default(3)
 })
 
 export const inject = ['canvas']
@@ -127,10 +127,27 @@ export async function apply(ctx: Context, config: Config) {
     const width = map[0].length * cellSize;
     const height = map.length * cellSize;
   
-    // 使用 @koishijs/canvas 的 createCanvas 方法
     return ctx.canvas.render(width, height, (ctx) => {
       const WALL_COLOR = config.wallColor;
       const PATH_COLOR = config.pathColor;
+      const GRID_COLOR = '#888'; 
+  
+      // Draw grid lines
+      for (let x = 0; x <= width; x += cellSize) {
+        ctx.strokeStyle = GRID_COLOR;
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, height);
+        ctx.stroke();
+      }
+      for (let y = 0; y <= height; y += cellSize) {
+        ctx.strokeStyle = GRID_COLOR;
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(width, y);
+        ctx.stroke();
+      }
+      // Draw the actual cells
       map.forEach((row, y) => {
         row.forEach((cell, x) => {
           ctx.fillStyle = cell === WALL_COLOR ? WALL_COLOR : PATH_COLOR;

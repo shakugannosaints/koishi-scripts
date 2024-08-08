@@ -33,7 +33,7 @@ var Config = import_koishi.Schema.object({
   RoomMin: import_koishi.Schema.number().min(1).max(500).default(3),
   RoomMax: import_koishi.Schema.number().min(1).max(500).default(5),
   mazeMax: import_koishi.Schema.number().min(2).max(850).default(500),
-  mazeMin: import_koishi.Schema.number().min(2).max(850).default(500)
+  mazeMin: import_koishi.Schema.number().min(2).max(850).default(3)
 });
 var inject = ["canvas"];
 var name = "dungeon-crafter";
@@ -134,6 +134,21 @@ async function apply(ctx, config) {
     return ctx.canvas.render(width2, height2, (ctx2) => {
       const WALL_COLOR = config2.wallColor;
       const PATH_COLOR = config2.pathColor;
+      const GRID_COLOR = "#888";
+      for (let x = 0; x <= width2; x += cellSize) {
+        ctx2.strokeStyle = GRID_COLOR;
+        ctx2.beginPath();
+        ctx2.moveTo(x, 0);
+        ctx2.lineTo(x, height2);
+        ctx2.stroke();
+      }
+      for (let y = 0; y <= height2; y += cellSize) {
+        ctx2.strokeStyle = GRID_COLOR;
+        ctx2.beginPath();
+        ctx2.moveTo(0, y);
+        ctx2.lineTo(width2, y);
+        ctx2.stroke();
+      }
       map.forEach((row, y) => {
         row.forEach((cell, x) => {
           ctx2.fillStyle = cell === WALL_COLOR ? WALL_COLOR : PATH_COLOR;

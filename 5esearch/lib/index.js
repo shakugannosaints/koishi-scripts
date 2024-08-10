@@ -44,16 +44,22 @@ function apply(ctx) {
   const simpleGit = require("simple-git");
   const git = simpleGit();
   const repoUrl = "https://github.com/DND5eChm/5echm_web";
-  const localPath = "./5echm_web";
+  const localPath = "./data/5echm_web";
   function checkLocalRepoExists() {
     return fs.existsSync(localPath);
   }
   __name(checkLocalRepoExists, "checkLocalRepoExists");
   async function cloneRepo() {
-    if (!checkLocalRepoExists()) {
-      await git.clone(repoUrl, localPath);
-    } else {
-      console.log("仓库已经存在于本地。");
+    try {
+      if (!checkLocalRepoExists()) {
+        console.log("仓库不存在，开始克隆，请等待");
+        await git.clone(repoUrl, localPath);
+      } else {
+        console.log("仓库已经存在于本地。");
+      }
+    } catch (error) {
+      console.error("克隆仓库时发生错误:", error.message);
+      console.error("错误堆栈:", error.stack);
     }
   }
   __name(cloneRepo, "cloneRepo");
@@ -89,11 +95,26 @@ function apply(ctx) {
   ctx.command("search <word>", "在仓库中搜索单词").action(async ({ session }, word) => {
     await cloneRepo();
     searchWordInFiles(localPath, word, session);
+    const sendMessage = /* @__PURE__ */ __name((message) => {
+      const maxLength = 3e3;
+      const msg = [];
+      for (let i = 0; i < message.length; i += maxLength) {
+        msg.push((0, import_koishi.h)("message", message.substring(i, i + maxLength)));
+        if (msg.length > 3) {
+          session.send("搜索内容过长，已截断");
+          break;
+        }
+      }
+      return (0, import_koishi.h)("message", { forward: true }, ...msg);
+    }, "sendMessage");
     if (results.length > 0) {
-      session.send(results.join("\n"));
+      session.send(sendMessage(results.join("\n")));
     } else {
-      session.send(allfinds.join("\n"));
+      session.send(sendMessage(allfinds.join("\n")));
     }
+    match = null;
+    results = [];
+    allfinds = [];
   });
 }
 __name(apply, "apply");

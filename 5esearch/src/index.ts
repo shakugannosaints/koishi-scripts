@@ -1,4 +1,4 @@
-import { Context, Schema } from 'koishi'
+import { Context, Schema,h} from 'koishi'
 import * as fs from 'fs'
 import * as path from 'path'
 
@@ -12,7 +12,7 @@ export function apply(ctx: Context) {
   const simpleGit = require('simple-git');
   const git = simpleGit();
   const repoUrl = 'https://github.com/DND5eChm/5echm_web';
-  const localPath = './5echm_web';
+  const localPath = './data/5echm_web';
 
   // 检查本地目录是否存在
   function checkLocalRepoExists() {
@@ -21,10 +21,16 @@ export function apply(ctx: Context) {
 
   // 克隆 GitHub 仓库
   async function cloneRepo() {
-    if (!checkLocalRepoExists()) {
-      await git.clone(repoUrl, localPath);
-    } else {
-      console.log('仓库已经存在于本地。');
+    try {
+      if (!checkLocalRepoExists()) {
+        console.log('仓库不存在，开始克隆，请等待');
+        await git.clone(repoUrl, localPath);
+      } else {
+        console.log('仓库已经存在于本地。');
+      }
+    } catch (error) {
+      console.error('克隆仓库时发生错误:', error.message);
+      console.error('错误堆栈:', error.stack);
     }
   }
   let match;
@@ -70,16 +76,33 @@ export function apply(ctx: Context) {
       }
     });
   }
-  // 在 Koishi 上下文中集成这些功能
-  ctx.command('search <word>', '在仓库中搜索单词')
-    .action(async ({ session }, word) => {
-      await cloneRepo();
-      searchWordInFiles(localPath, word, session);
-      if (results.length > 0) {
-        session.send(results.join('\n'));
-       }else{
-         session.send(allfinds.join('\n'));
-       }
-    });
-    
+ // 在 Koishi 上下文中集成这些功能
+ ctx.command('search <word>', '在仓库中搜索单词')
+ .action(async ({ session }, word) => {
+   await cloneRepo();
+   searchWordInFiles(localPath, word, session);
+   
+   const sendMessage = (message: string) => {
+     const maxLength = 3000;
+     const msg = [];
+     for (let i = 0; i < message.length; i += maxLength) {
+       msg.push(h('message', message.substring(i, i + maxLength)));
+       if (msg.length > 3) {
+        session.send('搜索内容过长，已截断')
+        break;
+      }
+     }
+     return h('message', { forward: true }, ...msg);
+   };
+
+   if (results.length > 0) {
+     session.send(sendMessage(results.join('\n')));
+   } else {
+     session.send(sendMessage(allfinds.join('\n')));
+   }
+
+   match = null;
+   results = [];
+   allfinds = [];
+ });
 }

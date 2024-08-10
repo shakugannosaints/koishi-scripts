@@ -78,11 +78,11 @@ function apply(ctx) {
         const content = fs.readFileSync(filePath, "utf8");
         const regex = new RegExp(`<H. id="[^"]*">${word}[^<]*</H.>(.*?)<P>(.*?)</P>`, "gs");
         if (fileNameWithoutExt === word) {
-          const body = content.replace(/.*true;};/gs, "").replace(/<[^>]+>/gs, "").replace(/\s+/gs, " ").replace(/\\n/gs, " ").trim();
+          const body = content.replace(/.*true;};/gs, "").replace(/<[^>]+>/gs, "").replace(/\s+/gs, "").replace(/\\n/gs, "").replace(/&nbsp;/gs, "").trim();
           results.push(body);
         }
         while ((match = regex.exec(content)) !== null) {
-          const body = match[0].replace(/.*true;};/gs, "").replace(/<[^>]+>/gs, "").replace(/\s+/gs, "").replace(/\\n/gs, "").trim();
+          const body = match[0].replace(/.*true;};/gs, "").replace(/<[^>]+>/gs, "").replace(/\s+/gs, "").replace(/\\n/gs, "").replace(/&nbsp;/gs, "").trim();
           results.push(body);
         }
         if (content.includes(word)) {

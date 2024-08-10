@@ -54,8 +54,9 @@ export function apply(ctx: Context) {
           const body = content
             .replace(/.*true;};/gs,'')
             .replace(/<[^>]+>/gs, '')  // 去除所有 HTML 标签
-            .replace(/\s+/gs, ' ')     // 去除多余的空格、换行符和制表符
-            .replace(/\\n/gs, ' ')     // 去除 JSON 字符串中的 \n
+            .replace(/\s+/gs, '')     // 去除多余的空格、换行符和制表符
+            .replace(/\\n/gs, '')     // 去除 JSON 字符串中的 \n
+            .replace(/&nbsp;/gs,'')  // &nbsp;
             .trim();                  // 去除字符串两端的空格
           results.push(body);
         }
@@ -66,6 +67,7 @@ export function apply(ctx: Context) {
             .replace(/<[^>]+>/gs, '')  // 去除所有 HTML 标签
             .replace(/\s+/gs, '')     // 去除多余的空格、换行符和制表符
             .replace(/\\n/gs, '')     // 去除 JSON 字符串中的 \n
+            .replace(/&nbsp;/gs,'')  // &nbsp;
             .trim();                  // 去除字符串两端的空格
           results.push(body);
         }

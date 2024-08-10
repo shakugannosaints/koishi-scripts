@@ -53,22 +53,24 @@ export function apply(ctx: Context) {
         // 检查文件名是否与输入的单词完全匹配
         if (fileNameWithoutExt === word) {
           const bodyf = content
-            .replace(/.*true;};}/gs,'')
+            .replace(/.*true;};/gs,'')
             .replace(/<[^>]+>/gs, '')  // 去除所有 HTML 标签
             .replace(/\s+/gs, '')     // 去除多余的空格、换行符和制表符
             .replace(/\\n/gs, '')     // 去除 JSON 字符串中的 \n
             .replace(/&nbsp;/gs,'')  // &nbsp;
+            .replace(/}/gs,'')        //段首}
             .trim();                  // 去除字符串两端的空格
           resultsf.push(bodyf);
         }
         
         while ((match = regex.exec(content)) !== null) {
           const body = match[0]
-            .replace(/.*true;};}/gs,'')
+            .replace(/.*true;};/gs,'')
             .replace(/<[^>]+>/gs, '')  // 去除所有 HTML 标签
             .replace(/\s+/gs, '')     // 去除多余的空格、换行符和制表符
             .replace(/\\n/gs, '')     // 去除 JSON 字符串中的 \n
             .replace(/&nbsp;/gs,'')  // &nbsp;
+            .replace(/}/gs,'')        //段首}
             .trim();                  // 去除字符串两端的空格
           results.push(body);
         }
@@ -89,7 +91,7 @@ export function apply(ctx: Context) {
      const msg = [];
      for (let i = 0; i < message.length; i += maxLength) {
        msg.push(h('message', message.substring(i, i + maxLength)));
-       if (msg.length > 3) {
+       if (msg.length > 5) {
         session.send('搜索内容过长，已截断')
         break;
       }
@@ -97,14 +99,13 @@ export function apply(ctx: Context) {
      return h('message', { forward: true }, ...msg);
    };
    if (resultsf.length > 0) {
-      session.send(sendMessage(resultsf.join('\n')));
-   } else {
+      session.send('文件名完全匹配关键词的内容：\n'+sendMessage(resultsf.join('\n')));
+   } 
     if (results.length > 0) {
-      session.send(sendMessage(results.join('\n')));
+      session.send('以关键词为标题的内容：\n'+sendMessage(results.join('\n')));
     } else {
-      session.send(sendMessage(allfinds.join('\n')));
+      session.send('包含关键词的文件条目，搜索对应文件名（不含后缀）获取文件内容\n'+sendMessage(allfinds.join('\n')));
     }
-   }
 
    match = null;
    results = [];

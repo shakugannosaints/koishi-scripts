@@ -35,6 +35,7 @@ export function apply(ctx: Context) {
   }
   let match;
   let results = [];
+  let resultsf = [];
   let allfinds = [];
   // 遍历文件系统并搜索单词
   function searchWordInFiles(dir, word, session) {
@@ -51,19 +52,19 @@ export function apply(ctx: Context) {
 
         // 检查文件名是否与输入的单词完全匹配
         if (fileNameWithoutExt === word) {
-          const body = content
-            .replace(/.*true;};/gs,'')
+          const bodyf = content
+            .replace(/.*true;};}/gs,'')
             .replace(/<[^>]+>/gs, '')  // 去除所有 HTML 标签
             .replace(/\s+/gs, '')     // 去除多余的空格、换行符和制表符
             .replace(/\\n/gs, '')     // 去除 JSON 字符串中的 \n
             .replace(/&nbsp;/gs,'')  // &nbsp;
             .trim();                  // 去除字符串两端的空格
-          results.push(body);
+          resultsf.push(bodyf);
         }
         
         while ((match = regex.exec(content)) !== null) {
           const body = match[0]
-            .replace(/.*true;};/gs,'')
+            .replace(/.*true;};}/gs,'')
             .replace(/<[^>]+>/gs, '')  // 去除所有 HTML 标签
             .replace(/\s+/gs, '')     // 去除多余的空格、换行符和制表符
             .replace(/\\n/gs, '')     // 去除 JSON 字符串中的 \n
@@ -83,7 +84,6 @@ export function apply(ctx: Context) {
  .action(async ({ session }, word) => {
    await cloneRepo();
    searchWordInFiles(localPath, word, session);
-   
    const sendMessage = (message: string) => {
      const maxLength = 3000;
      const msg = [];
@@ -96,15 +96,19 @@ export function apply(ctx: Context) {
      }
      return h('message', { forward: true }, ...msg);
    };
-
-   if (results.length > 0) {
-     session.send(sendMessage(results.join('\n')));
+   if (resultsf.length > 0) {
+      session.send(sendMessage(resultsf.join('\n')));
    } else {
-     session.send(sendMessage(allfinds.join('\n')));
+    if (results.length > 0) {
+      session.send(sendMessage(results.join('\n')));
+    } else {
+      session.send(sendMessage(allfinds.join('\n')));
+    }
    }
 
    match = null;
    results = [];
+   resultsf = [];
    allfinds = [];
  });
 }

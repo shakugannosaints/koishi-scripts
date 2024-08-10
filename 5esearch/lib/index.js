@@ -65,6 +65,7 @@ function apply(ctx) {
   __name(cloneRepo, "cloneRepo");
   let match;
   let results = [];
+  let resultsf = [];
   let allfinds = [];
   function searchWordInFiles(dir, word, session) {
     const files = fs.readdirSync(dir);
@@ -78,11 +79,11 @@ function apply(ctx) {
         const content = fs.readFileSync(filePath, "utf8");
         const regex = new RegExp(`<H. id="[^"]*">${word}[^<]*</H.>(.*?)<P>(.*?)</P>`, "gs");
         if (fileNameWithoutExt === word) {
-          const body = content.replace(/.*true;};/gs, "").replace(/<[^>]+>/gs, "").replace(/\s+/gs, "").replace(/\\n/gs, "").replace(/&nbsp;/gs, "").trim();
-          results.push(body);
+          const bodyf = content.replace(/.*true;};}/gs, "").replace(/<[^>]+>/gs, "").replace(/\s+/gs, "").replace(/\\n/gs, "").replace(/&nbsp;/gs, "").trim();
+          resultsf.push(bodyf);
         }
         while ((match = regex.exec(content)) !== null) {
-          const body = match[0].replace(/.*true;};/gs, "").replace(/<[^>]+>/gs, "").replace(/\s+/gs, "").replace(/\\n/gs, "").replace(/&nbsp;/gs, "").trim();
+          const body = match[0].replace(/.*true;};}/gs, "").replace(/<[^>]+>/gs, "").replace(/\s+/gs, "").replace(/\\n/gs, "").replace(/&nbsp;/gs, "").trim();
           results.push(body);
         }
         if (content.includes(word)) {
@@ -107,13 +108,18 @@ function apply(ctx) {
       }
       return (0, import_koishi.h)("message", { forward: true }, ...msg);
     }, "sendMessage");
-    if (results.length > 0) {
-      session.send(sendMessage(results.join("\n")));
+    if (resultsf.length > 0) {
+      session.send(sendMessage(resultsf.join("\n")));
     } else {
-      session.send(sendMessage(allfinds.join("\n")));
+      if (results.length > 0) {
+        session.send(sendMessage(results.join("\n")));
+      } else {
+        session.send(sendMessage(allfinds.join("\n")));
+      }
     }
     match = null;
     results = [];
+    resultsf = [];
     allfinds = [];
   });
 }

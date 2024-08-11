@@ -1,12 +1,12 @@
 {
   "name": "koishi-plugin-5esearch",
   "description": "search dnd5e from 5echm",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "contributors": [
     "冷筱华 <lengxiaohua@icemoe.moe>"
   ],
   "license": "AGPL-3.0",
-  "homepage": "https://koishi.icemoe.moe/Koishi/5esearch.html",
+  "homepage": "https://koishi.icemoe.moe/koishi/5e-search.html",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/shakugannosaints/koishi-scripts.git"

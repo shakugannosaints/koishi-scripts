@@ -52,7 +52,7 @@ function apply(ctx) {
   async function cloneRepo() {
     try {
       if (!checkLocalRepoExists()) {
-        console.log("仓库不存在，开始克隆，请等待");
+        console.log("仓库不存在，开始克隆，请等待。这需要一段时间。如果出现未知错误，请看readme。");
         await git.clone(repoUrl, localPath);
       } else {
         console.log("仓库已经存在于本地。");
@@ -103,7 +103,7 @@ function apply(ctx) {
     await cloneRepo();
     searchWordInFiles(localPath, word, session);
     const sendMessage = /* @__PURE__ */ __name((message) => {
-      const maxLength = 3e3;
+      const maxLength = 1500;
       const msg = [];
       for (let i = 0; i < message.length; i += maxLength) {
         msg.push((0, import_koishi.h)("message", message.substring(i, i + maxLength)));
@@ -117,11 +117,17 @@ function apply(ctx) {
     if (resultsf.length > 0) {
       session.send(sendMessage(resultsf.join("\n")));
     }
+    ;
     if (results.length > 0 && !(resultsf.length > 0)) {
       session.send(sendMessage(results.join("\n")));
     }
+    ;
     if (allfinds.length > 0 && (!(results.length > 0) && !(resultsf.length > 0))) {
       session.send(sendMessage(allfinds.join("\n")));
+    }
+    ;
+    if (!(results.length > 0) && !(resultsf.length > 0) && !(allfinds.length > 0)) {
+      session.send("没有找到相关内容。");
     }
     match = null;
     results = [];

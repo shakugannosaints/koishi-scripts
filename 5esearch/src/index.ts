@@ -23,7 +23,7 @@ export function apply(ctx: Context) {
   async function cloneRepo() {
     try {
       if (!checkLocalRepoExists()) {
-        console.log('仓库不存在，开始克隆，请等待');
+        console.log('仓库不存在，开始克隆，请等待。这需要一段时间。如果出现未知错误，请看readme。');
         await git.clone(repoUrl, localPath);
       } else {
         console.log('仓库已经存在于本地。');
@@ -48,7 +48,7 @@ export function apply(ctx: Context) {
       } else if (stat.isFile() && (filePath.endsWith('.html') || filePath.endsWith('.htm'))) {
         const fileNameWithoutExt = path.basename(file, path.extname(file));
         const content = fs.readFileSync(filePath, 'utf8');
-        const regex = new RegExp(`<H. id="[^"]*">${word}[^<]*</H.>(.*?)<P>(.*?)</P>`, 'gs');
+        const regex = new RegExp(`<H. id="[^"]*">${word}[^<]*</H.>(.*?)<P>(.*?)</P>`, 'gs');//这里其实是对法术格式专用的匹配
 
         // 检查文件名是否与输入的单词完全匹配
         if (fileNameWithoutExt === word) {
@@ -92,8 +92,9 @@ export function apply(ctx: Context) {
  .action(async ({ session }, word) => {
    await cloneRepo();
    searchWordInFiles(localPath, word, session);
+    //打包过长的消息。注意，这里的长度是以字节为单位的，而不是字符数。另外，如果打包消息过长也会发不出去。请确保设置合理。
    const sendMessage = (message: string) => {
-     const maxLength = 3000;
+     const maxLength = 1500;
      const msg = [];
      for (let i = 0; i < message.length; i += maxLength) {
        msg.push(h('message', message.substring(i, i + maxLength)));
@@ -103,17 +104,21 @@ export function apply(ctx: Context) {
       }
      }
     return h('message', { forward: true }, ...msg);
-   };
+    };
+    //避免重复发送。这样写是为了修改判断逻辑的时候以及拓展逻辑时方便
     if (resultsf.length > 0) {
       session.send(sendMessage(resultsf.join('\n')));
-   } 
+    }; 
    if ((results.length > 0)&&(!(resultsf.length > 0))) {
     session.send(sendMessage(results.join('\n')));
-  }
+    };
     if ((allfinds.length > 0)&&((!(results.length > 0))&&(!(resultsf.length > 0)))) {
       session.send(sendMessage(allfinds.join('\n')));
+    };
+    if ((!(results.length > 0))&&(!(resultsf.length > 0))&&(!(allfinds.length > 0))) {
+      session.send('没有找到相关内容。');
     }
-
+    //重置全局变量，避免影响下次搜索
    match = null;
    results = [];
    resultsf = [];

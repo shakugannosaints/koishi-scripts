@@ -80,6 +80,9 @@ function apply(ctx) {
         const regex = new RegExp(`<H. id="[^"]*">${word}[^<]*</H.>(.*?)<P>(.*?)</P>`, "gs");
         if (fileNameWithoutExt === word) {
           const bodyf = content.replace(/.*true;};/gs, "").replace(/<[^>]+>/gs, "").replace(/\s+/gs, "").replace(/\\n/gs, "").replace(/&nbsp;/gs, "").replace(/}/gs, "").trim();
+          if (resultsf.length == 0) {
+            resultsf.push(`以下为文件名完全匹配${word}的文件`);
+          }
           resultsf.push(bodyf);
         }
         while ((match = regex.exec(content)) !== null) {
@@ -87,7 +90,10 @@ function apply(ctx) {
           results.push(body);
         }
         if (content.includes(word)) {
-          allfinds.push(`在文件 ${filePath} 中找到单词 ${word}`);
+          if (allfinds.length == 0) {
+            allfinds.push(`以下为包含${word}的文件。如果没有找到想要的内容，你可以直接搜索文件名（不包含后缀）`);
+          }
+          allfinds.push(`${filePath}`);
         }
       }
     });
@@ -109,12 +115,13 @@ function apply(ctx) {
       return (0, import_koishi.h)("message", { forward: true }, ...msg);
     }, "sendMessage");
     if (resultsf.length > 0) {
-      session.send("文件名完全匹配关键词的内容：\n" + sendMessage(resultsf.join("\n")));
+      session.send(sendMessage(resultsf.join("\n")));
     }
-    if (results.length > 0) {
-      session.send("以关键词为标题的内容：\n" + sendMessage(results.join("\n")));
-    } else {
-      session.send("包含关键词的文件条目，搜索对应文件名（不含后缀）获取文件内容\n" + sendMessage(allfinds.join("\n")));
+    if (results.length > 0 && !(resultsf.length > 0)) {
+      session.send(sendMessage(results.join("\n")));
+    }
+    if (allfinds.length > 0 && (!(results.length > 0) && !(resultsf.length > 0))) {
+      session.send(sendMessage(allfinds.join("\n")));
     }
     match = null;
     results = [];

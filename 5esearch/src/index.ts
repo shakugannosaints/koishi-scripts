@@ -60,7 +60,10 @@ export function apply(ctx: Context) {
             .replace(/&nbsp;/gs,'')  // &nbsp;
             .replace(/}/gs,'')        //段首}
             .trim();                  // 去除字符串两端的空格
-          resultsf.push(bodyf);
+            if (resultsf.length == 0){
+              resultsf.push(`以下为文件名完全匹配${word}的文件`)
+            }
+            resultsf.push(bodyf);
         }
         
         while ((match = regex.exec(content)) !== null) {
@@ -75,7 +78,10 @@ export function apply(ctx: Context) {
           results.push(body);
         }
         if (content.includes(word) ) {
-          allfinds.push(`在文件 ${filePath} 中找到单词 ${word}`);
+          if (allfinds.length == 0){
+            allfinds.push(`以下为包含${word}的文件。如果没有找到想要的内容，你可以直接搜索文件名（不包含后缀）`)
+          }
+          allfinds.push(`${filePath}` );
          }
 
       }
@@ -96,15 +102,16 @@ export function apply(ctx: Context) {
         break;
       }
      }
-     return h('message', { forward: true }, ...msg);
+    return h('message', { forward: true }, ...msg);
    };
-   if (resultsf.length > 0) {
-      session.send('文件名完全匹配关键词的内容：\n'+sendMessage(resultsf.join('\n')));
+    if (resultsf.length > 0) {
+      session.send(sendMessage(resultsf.join('\n')));
    } 
-    if (results.length > 0) {
-      session.send('以关键词为标题的内容：\n'+sendMessage(results.join('\n')));
-    } else {
-      session.send('包含关键词的文件条目，搜索对应文件名（不含后缀）获取文件内容\n'+sendMessage(allfinds.join('\n')));
+   if ((results.length > 0)&&(!(resultsf.length > 0))) {
+    session.send(sendMessage(results.join('\n')));
+  }
+    if ((allfinds.length > 0)&&((!(results.length > 0))&&(!(resultsf.length > 0)))) {
+      session.send(sendMessage(allfinds.join('\n')));
     }
 
    match = null;

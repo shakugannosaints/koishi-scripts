@@ -1,7 +1,7 @@
 {
   "name": "koishi-plugin-5esearch",
   "description": "search dnd5e from 5echm",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "contributors": [
     "冷筱华 <lengxiaohua@icemoe.moe>"
   ],

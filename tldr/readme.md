@@ -17,8 +17,9 @@
 
 ```bash
 # 在你的Koishi项目中安装
-npm install koishi-plugin-tldr
+npm install koishi-plugin-tldr2
 ```
+有一个2是因为我之前猪鼻了
 
 或者在Koishi插件市场中搜索"tldr"并安装。
 

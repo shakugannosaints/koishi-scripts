@@ -55,6 +55,6 @@ npm install koishi-plugin-tldr
 - 总结质量取决于所使用的AI模型
 - 请确保您有足够的API调用额度
 
-## 许可证
+## 许可
 
-MIT
+AGPL-3.0

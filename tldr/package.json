@@ -1,0 +1,35 @@
+{
+  "name": "koishi-plugin-tldr",
+  "version": "1.0.1",
+  "description": "太长不看 - AI总结群聊消息的功能",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "koishi",
+    "plugin",
+    "tldr",
+    "summary",
+    "ai",
+    "chat"
+  ],
+  "author": "冷筱华",
+  "license": "AGPL-3.0-only",
+  "dependencies": {
+    "@koishijs/plugin-adapter-onebot": "^6.0.2",
+    "axios": "^1.6.0",
+    "koishi": "^4.15.0"
+  },
+  "peerDependencies": {
+    "koishi": "^4.0.0"
+  },
+  "koishi": {
+    "description": {
+      "zh": "太长不看 - AI总结群聊消息的功能"
+    },
+    "service": {
+      "required": []
+    }
+  }
+}

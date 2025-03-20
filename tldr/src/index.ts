@@ -21,7 +21,10 @@ exports.Config = Schema.object({
     .default('gpt-3.5-turbo'),
   commandTimeout: Schema.number()
     .description('命令超时时间（秒），超过该时间未完成操作将自动取消，设置为0表示永不超时')
-    .default(300)
+    .default(300),
+  Textlimit: Schema.number()
+    .description('命令文本限制，超过该长度将被截断')
+    .default(60000)
 })
 
 // 插件主体
@@ -58,12 +61,72 @@ exports.apply = (ctx, config) => {
   })
   
   // 处理 .tldr 命令
-  ctx.command('tldr', '太长不看 - AI总结群聊消息')
-    .action(async ({ session }) => {
+  ctx.command('tldr [count:number]', '太长不看 - AI总结群聊消息')
+    .action(async ({ session }, count) => {
       if (!session.guildId) {
         return '该命令只能在群组中使用'
       }
       
+      // 如果提供了数字参数，直接总结最近的n条消息
+      if (count && Number.isInteger(count)) {
+        // 获取群组消息
+        const messages = messageStore[session.guildId] || []
+        if (messages.length === 0) {
+          return '没有找到可总结的消息'
+        }
+        
+        // 获取最近的n条消息，但不超过现有消息数量
+        const messageCount = Math.min(count, messages.length)
+        const messagesToSummarize = messages.slice(-messageCount)
+        
+        // 格式化消息，计算字符数
+        const formattedMessages = messagesToSummarize.map(msg => {
+          const content = msg.content.replace(/\[CQ:image[^\]]*\]/g, '[图片]')
+          return `${msg.username}: ${content}`
+        }).join('\n')
+        
+        // 检查字符数是否超过限制
+        if (formattedMessages.length > config.Textlimit) {
+          return `总结失败：选择的消息内容超过60000字符(当前${formattedMessages.length}字符)，请减少消息数量`
+        }
+        
+        // 调用OpenAI API
+        try {
+          await session.send(`正在总结最近的${messageCount}条消息，请稍候...`)
+          
+          const response = await axios.post(
+            config.openaiEndpoint,
+            {
+              model: config.openaiModel,
+              messages: [
+                {
+                  role: 'system',
+                  content: '以下是一段群组内的聊天记录，请你整理其中每个人各自的观点或者叙述，然后总结。'
+                },
+                {
+                  role: 'user',
+                  content: formattedMessages
+                }
+              ]
+            },
+            {
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${config.openaiApiKey}`
+              }
+            }
+          )
+          
+          // 返回AI总结结果
+          const summary = response.data.choices[0].message.content
+          return `【太长不看】最近${messageCount}条消息总结：\n${summary}`
+        } catch (error) {
+          console.error('OpenAI API调用失败:', error)
+          return `总结失败: ${error.message}`
+        }
+      }
+      
+      // 如果没有提供参数，使用原来的流程
       // 创建会话状态
       const sessionId = `${session.guildId}-${session.userId}`
       sessionStore[sessionId] = {

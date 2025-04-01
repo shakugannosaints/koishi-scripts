@@ -59,100 +59,89 @@ exports.apply = (ctx, config) => {
     
     return next()
   })
-  
-  // 处理 .tldr 命令
-  ctx.command('tldr [count:number]', '太长不看 - AI总结群聊消息')
-    .action(async ({ session }, count) => {
-      if (!session.guildId) {
-        return '该命令只能在群组中使用'
+
+  //处理tldr
+  ctx.command('tldr [count:number] [...names:string]', '太长不看 - AI总结群聊消息')
+  .action(async ({ session }, count, ...names) => {
+    if (!session.guildId) {
+      return '该命令只能在群组中使用'
+    }
+
+    // 如果提供了数字参数，直接总结最近的n条消息
+    if (count && Number.isInteger(count)) {
+      // 获取群组消息
+      const messages = messageStore[session.guildId] || []
+      if (messages.length === 0) {
+        return '没有找到可总结的消息'
       }
-      
-      // 如果提供了数字参数，直接总结最近的n条消息
-      if (count && Number.isInteger(count)) {
-        // 获取群组消息
-        const messages = messageStore[session.guildId] || []
-        if (messages.length === 0) {
-          return '没有找到可总结的消息'
-        }
-        
-        // 获取最近的n条消息，但不超过现有消息数量
-        const messageCount = Math.min(count, messages.length)
-        const messagesToSummarize = messages.slice(-messageCount)
-        
-        // 格式化消息，计算字符数
-        const formattedMessages = messagesToSummarize.map(msg => {
-          const content = msg.content.replace(/\[CQ:image[^\]]*\]/g, '[图片]')
-          return `${msg.username}: ${content}`
-        }).join('\n')
-        
-        // 检查字符数是否超过限制
-        if (formattedMessages.length > config.Textlimit) {
-          return `总结失败：选择的消息内容超过60000字符(当前${formattedMessages.length}字符)，请减少消息数量`
-        }
-        
-        // 调用OpenAI API
-        try {
-          await session.send(`正在总结最近的${messageCount}条消息，请稍候...`)
-          
-          const response = await axios.post(
-            config.openaiEndpoint,
-            {
-              model: config.openaiModel,
-              messages: [
-                {
-                  role: 'system',
-                  content: '以下是一段群组内的聊天记录，请你整理其中每个人各自的观点或者叙述，然后总结。'
-                },
-                {
-                  role: 'user',
-                  content: formattedMessages
-                }
-              ]
-            },
-            {
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${config.openaiApiKey}`
+
+      // 获取最近的n条消息，但不超过现有消息数量
+      const messageCount = Math.min(count, messages.length)
+      const messagesToSummarize = messages.slice(-messageCount)
+
+      // 如果提供了特定用户名，过滤消息
+      const filteredMessages = names.length > 0
+        ? messagesToSummarize.filter(msg => names.includes(msg.username))
+        : messagesToSummarize
+
+      if (filteredMessages.length === 0) {
+        return `没有找到${names.join('、')}的相关消息`
+      }
+
+      // 格式化消息，计算字符数
+      const formattedMessages = filteredMessages.map(msg => {
+        const content = msg.content.replace(/\[CQ:image[^\]]*\]/g, '[图片]')
+        return `${msg.username}: ${content}`
+      }).join('\n')
+
+      // 检查字符数是否超过限制
+      if (formattedMessages.length > config.Textlimit) {
+        return `总结失败：选择的消息内容超过60000字符(当前${formattedMessages.length}字符)，请减少消息数量`
+      }
+
+      // 调整提示词
+      const prompt = names.length > 0
+        ? `以下是一段群组内的聊天记录，请你整理其中每个人各自的观点或者叙述，然后总结。只需要总结以下用户的发言：${names.join('、')}。`
+        : '以下是一段群组内的聊天记录，请你整理其中每个人各自的观点或者叙述，然后总结。'
+
+      // 调用OpenAI API
+      try {
+        await session.send(`正在总结最近的${messageCount}条消息，请稍候...`)
+
+        const response = await axios.post(
+          config.openaiEndpoint,
+          {
+            model: config.openaiModel,
+            messages: [
+              {
+                role: 'system',
+                content: prompt
+              },
+              {
+                role: 'user',
+                content: formattedMessages
               }
+            ]
+          },
+          {
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${config.openaiApiKey}`
             }
-          )
-          
-          // 返回AI总结结果
-          const summary = response.data.choices[0].message.content
-          return `【太长不看】最近${messageCount}条消息总结：\n${summary}`
-        } catch (error) {
-          console.error('OpenAI API调用失败:', error)
-          return `总结失败: ${error.message}`
-        }
-      }
-      
-      // 如果没有提供参数，使用原来的流程
-      // 创建会话状态
-      const sessionId = `${session.guildId}-${session.userId}`
-      sessionStore[sessionId] = {
-        userId: session.userId,
-        guildId: session.guildId,
-        stage: 'start',
-        firstMessageId: null,
-        secondMessageId: null,
-        startTime: Date.now(),
-      }
-      
-      // 设置超时
-      if (config.commandTimeout > 0) {
-        setTimeout(() => {
-          // 检查会话是否仍在进行中
-          if (sessionStore[sessionId] && sessionStore[sessionId].stage !== 'completed') {
-            // 通知用户命令已超时
-            session.send('太长不看命令已超时，请重新开始。')
-            // 删除会话
-            delete sessionStore[sessionId]
           }
-        }, config.commandTimeout * 1000)
+        )
+
+        // 返回AI总结结果
+        const summary = response.data.choices[0].message.content
+        return `【太长不看】最近${messageCount}条消息总结：\n${summary}`
+      } catch (error) {
+        console.error('OpenAI API调用失败:', error)
+        return `总结失败: ${error.message}`
       }
-      
-      return '请回复（引用）第一条消息，并且输入1'
-    })
+    }
+
+    return '请提供消息数量，例如 .tldr 100'
+  })
   
   // 监听回复消息
   ctx.middleware(async (session, next) => {

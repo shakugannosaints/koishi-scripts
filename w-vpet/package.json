@@ -1,0 +1,37 @@
+{
+  "name": "koishi-plugin-w-vpet",
+  "description": "基于消息数据库的电子宠物插件",
+  "version": "1.0.0",
+  "main": "lib/index.js",
+  "typings": "lib/index.d.ts",
+  "files": [
+    "lib",
+    "dist"
+  ],
+  "license": "MIT",
+  "scripts": {
+    "build": "tsc -b"
+  },
+  "keywords": [
+    "chatbot",
+    "koishi",
+    "plugin",
+    "virtual-pet",
+    "game"
+  ],
+  "peerDependencies": {
+    "koishi": "^4.13.0",
+    "koishi-plugin-w-message-db": "^1.0.0"
+  },
+  "koishi": {
+    "description": {
+      "zh-CN": "基于消息数据库的电子宠物插件"
+    },
+    "service": {
+      "required": [
+        "database",
+        "messageDb"
+      ]
+    }
+  }
+}

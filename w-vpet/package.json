@@ -1,7 +1,7 @@
 {
   "name": "koishi-plugin-w-vpet",
-  "description": "基于消息数据库的电子宠物插件",
-  "version": "1.0.0",
+  "description": "基于w-messagedb的电子宠物插件",
+  "version": "1.0.2",
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
   "files": [

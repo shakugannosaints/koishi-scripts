@@ -141,11 +141,16 @@ export class VPetService extends Service {
       newHealth = this.config.maxHealth
     }
 
+    // 计算成长值（每10条消息+1）
+    const extraGrowth = Math.floor(messageCount / 10)
+    const newGrowth = pet.growth + extraGrowth
+
     // 更新宠物信息
     const now = Date.now()
     const updatedPet: Pet = {
       ...pet,
       health: newHealth,
+      growth: newGrowth,
       lastInteractTime: now,
     }
 
@@ -155,6 +160,7 @@ export class VPetService extends Service {
       guildId,
     }, {
       health: updatedPet.health,
+      growth: updatedPet.growth,
       lastInteractTime: updatedPet.lastInteractTime,
     })
 
@@ -170,10 +176,14 @@ export class VPetService extends Service {
       return pet // 不到一天，不更新状态
     }
 
-    // 计算新的健康值和成长值
+    // 计算新的健康值
     const healthDecrease = daysSinceLastInteraction * this.config.healthDecreasePerDay
     let newHealth = Math.max(0, pet.health - healthDecrease)
-    const newGrowth = pet.growth + daysSinceLastInteraction
+
+    // 计算额外成长值：每10条消息+1
+    const messageCount = await this.getMessageCountSinceLastInteraction(pet.userId, pet.platform, pet.guildId, pet.lastInteractTime)
+    const extraGrowth = Math.floor(messageCount / 10)
+    const newGrowth = pet.growth + daysSinceLastInteraction + extraGrowth
 
     // 更新宠物信息
     const updatedPet: Pet = {
@@ -273,7 +283,18 @@ export class VPetService extends Service {
     if (growth < 7) return '幼年期'
     if (growth < 30) return '成长期'
     if (growth < 90) return '成熟期'
-    return '壮年期'
+    if (growth < 365) return '壮年期'
+    if (growth < 1000) return '蜕变期'
+    if (growth < 5000) return '练气期'
+    if (growth < 15000) return '筑基期'
+    if (growth < 50000) return '金丹期'
+    if (growth < 100000) return '元婴期'
+    if (growth < 200000) return '化神期'
+    if (growth < 500000) return '大乘期'
+    if (growth < 1000000) return '渡劫期'
+    if (growth < 2000000) return '飞升期'
+    if (growth < 5000000) return '仙兽'
+    return '永恒'
   }
 }
 

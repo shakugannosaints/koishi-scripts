@@ -20,10 +20,7 @@ export const Config: z<Config> = z.object({
 })
 
 export class VPetService extends Service {
-  static inject = {
-    database: { required: true },
-    messageDb: { required: true },
-  }
+  static inject = ['database', 'messageDb']
 
   logger = this.ctx.logger('w-vpet')
 
@@ -65,7 +62,15 @@ export class VPetService extends Service {
 
         // 检查宠物是否死亡
         if (pet.health <= 0) {
-          return `你的宠物 ${pet.name} 已经死亡，请重新领养一只新宠物。`
+          // 先删除原有宠物
+          await this.ctx.database.remove('w-vpet', {
+            userId,
+            platform,
+            guildId,
+          })
+          // 再重新领养
+          const newPet = await this.adoptPet(userId, platform, guildId, options.name)
+          return this.renderPetInfo(newPet, `你的宠物 ${pet.name} 已经死亡，已为你领养一只新宠物！`)
         }
 
         // 如果有 -n 参数，重命名宠物
@@ -176,12 +181,18 @@ export class VPetService extends Service {
       return pet // 不到一天，不更新状态
     }
 
-    // 计算新的健康值
+    // 获取自上次互动以来的消息数量
+    const messageCount = await this.getMessageCountSinceLastInteraction(pet.userId, pet.platform, pet.guildId, pet.lastInteractTime)
+    
+    // 计算健康值变化
     const healthDecrease = daysSinceLastInteraction * this.config.healthDecreasePerDay
-    let newHealth = Math.max(0, pet.health - healthDecrease)
+    const healthIncrease = messageCount * this.config.healthIncreasePerMessage
+    
+    // 计算新的健康值（同时考虑增加和减少）
+    let newHealth = pet.health - healthDecrease + healthIncrease
+    newHealth = Math.max(0, Math.min(newHealth, this.config.maxHealth)) // 限制在0到最大值之间
 
     // 计算额外成长值：每10条消息+1
-    const messageCount = await this.getMessageCountSinceLastInteraction(pet.userId, pet.platform, pet.guildId, pet.lastInteractTime)
     const extraGrowth = Math.floor(messageCount / 10)
     const newGrowth = pet.growth + daysSinceLastInteraction + extraGrowth
 

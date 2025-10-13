@@ -1,0 +1,24 @@
+{
+  "name": "koishi-plugin-triangle-agency",
+  "description": "三角机构跑团掷骰助手",
+  "version": "0.0.1",
+  "main": "lib/index.js",
+  "typings": "lib/index.d.ts",
+  "files": [
+    "lib",
+    "dist"
+  ],
+  "license": "MIT",
+  "keywords": [
+    "chatbot",
+    "koishi",
+    "plugin"
+  ],
+  "devDependencies": {
+    "@koishijs/client": "^5.29.4"
+  },
+  "peerDependencies": {
+    "@koishijs/plugin-console": "5.30.9",
+    "koishi": "4.18.9"
+  }
+}

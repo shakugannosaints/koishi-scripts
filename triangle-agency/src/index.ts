@@ -190,7 +190,10 @@ async function runCheck(ctx: Context, config: Config, session: Session, attrInpu
     if (typeof stored === 'number') {
       attributeValue = stored
     } else {
-      return `解析出错或属性不存在：${attrInput}`
+      // 未存储则自动初始化为 0 并持久化
+      const newAttrs = { ...(ua.attrs || {}), [canon]: 0 }
+      await ctx.database.set('ta-attrs', { platform: session.platform, guildId: session.guildId!, userId: session.userId }, { attrs: newAttrs })
+      attributeValue = 0
     }
   }
   const attributeValueNum = Number(attributeValue)
@@ -211,7 +214,8 @@ async function runCheck(ctx: Context, config: Config, session: Session, attrInpu
     const markedIntermediate = markResults([...intermediate], totalBurnout)
 
     const useShort = times > 1
-    if (threeCountBurned === 3) {
+    // 大成功：必须为原始掷骰恰好 3 个 3（不能由 4 个以上通过燃尽变为 3）
+    if (threeCountOriginal === 3) {
   const msg = useShort ? config.bigSuccessShortMsg : config.bigSuccessMsg
   results.push(`6D4=${markedIntermediate} ${formatWith(ctx, session, msg)}`)
       // chaos stays unchanged

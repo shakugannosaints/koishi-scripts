@@ -4,6 +4,7 @@ import {} from '@koishijs/plugin-console'
 import {} from 'koishi-plugin-w-message-db'
 
 export const name = 'triangle-agency'
+export const inject = ['database']
 
 // 配置项定义
 export interface Config {

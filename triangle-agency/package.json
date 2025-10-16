@@ -1,7 +1,7 @@
 {
   "name": "koishi-plugin-triangle-agency",
   "description": "三角机构跑团掷骰助手",
-  "version": "0.0.3",
+  "version": "0.0.5",
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
   "files": [

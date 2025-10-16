@@ -212,6 +212,43 @@ export function apply(ctx: Context, config: Config) {
       const list = keys.sort().map(k => `${k}=${attrs[k]}`).join('，')
       return `当前角色属性：${list}`
     })
+
+  // triangle.stat.clear / 别名：st.clear
+  ctx
+    .command('triangle.stat.clear [name:string]', '三角机构：清理属性；省略名称则清理所有数值为 0 的属性')
+    .alias('st.clear')
+    .action(async ({ session }, name) => {
+      if (!session?.guildId) return '请在群聊中使用该命令'
+      const ua = await getOrCreateUserAttrs(ctx, session)
+      const attrs = { ...(ua.attrs || {}) }
+
+      const removed: string[] = []
+
+      if (name) {
+        const raw = String(name).trim()
+        if (!raw) return '请输入要清理的属性名称，或省略名称以清理数值为 0 的属性'
+        const canon = resolveAttrName(raw)
+        const rawLower = raw.toLowerCase()
+        for (const key of Object.keys(attrs)) {
+          if (key === raw || key.toLowerCase() === rawLower || (canon && key === canon)) {
+            removed.push(key)
+            delete attrs[key]
+          }
+        }
+        if (removed.length === 0) return `未找到属性“${raw}”`
+      } else {
+        for (const [k, v] of Object.entries(attrs)) {
+          if (v === 0) {
+            removed.push(k)
+            delete attrs[k]
+          }
+        }
+        if (removed.length === 0) return '没有数值为 0 的属性可清理'
+      }
+
+      await ctx.database.set('ta-attrs', { platform: session.platform, guildId: session.guildId!, userId: session.userId }, { attrs })
+      return `已清理属性：${removed.sort().join('，')}`
+    })
 }
 
 // 运行一次检定/改写

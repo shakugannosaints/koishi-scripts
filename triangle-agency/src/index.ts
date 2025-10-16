@@ -49,14 +49,6 @@ declare module 'koishi' {
 }
 
 export function apply(ctx: Context, config: Config) {
-  // 后台面板入口（保留）
-  ctx.inject(['console'], (ctx) => {
-    ctx.console?.addEntry?.({
-      dev: resolve(__dirname, '../client/index.ts'),
-      prod: resolve(__dirname, '../dist'),
-    })
-  })
-
   // 建表
   ctx.model.extend(
     'ta-state',
@@ -81,71 +73,114 @@ export function apply(ctx: Context, config: Config) {
     { primary: ['platform', 'guildId', 'userId'] },
   )
 
-  // 指令：ta / tr
-  ctx.command('ta <attr:string>', '三角机构：技能检定（.ta <属性名/质保数量>）')
+  // ========== 指令：全部迁移到 triangle.* 命名空间，并添加向后兼容 alias ==========
+  // 说明：
+  // - 为避免在 root 命令空间与其他插件撞名，所有指令统一注册在 `triangle.*` 下。
+  // - 同时保留原有简写作为 alias：ta/tr/st/tcs/tcst/tfs/tfst。
+  // - 示例：`.triangle check 2 -x 3` 等价于 `.ta 2 -x 3`。
+
+  // 命名空间根：triangle（命令集合说明）
+  ctx.command('triangle', '三角机构：命令集合（使用 .triangle <子命令>）')
+
+  // triangle.check / 别名：ta
+  ctx
+    .command('triangle.check <attr:string>', '三角机构：技能检定（.triangle check <属性名/质保数量>）')
+    .alias('ta')
     .option('c', '-c 不修改混沌值')
     .option('x', '-x <times:number> 重复次数，默认1')
+    .example('.triangle check 2 -x 3')
     .example('.ta 2 -x 3')
     .action(async ({ session, options }, attr) => runCheck(ctx, config, session!, attr, false, options))
 
-  ctx.command('tr <attr:string>', '三角机构：现实改写检定（.tr <属性名/质保数量>）')
+  // triangle.rewrite / 别名：tr
+  ctx
+    .command('triangle.rewrite <attr:string>', '三角机构：现实改写检定（.triangle rewrite <属性名/质保数量>）')
+    .alias('tr')
     .option('c', '-c 不修改混沌值')
     .option('f', '-f 不占用改写失败次数')
     .option('x', '-x <times:number> 重复次数，默认1')
+    .example('.triangle rewrite -1 -x 2')
     .example('.tr -1 -x 2')
     .action(async ({ session, options }, attr) => runCheck(ctx, config, session!, attr, true, options))
 
-  // 指令：tcs / tcst （混沌值管理）
-  ctx.command('tcs [delta:number]', '三角机构：混沌值管理（省略参数显示当前值；正数为消除，负数为增加）')
+  // triangle.chaos / 别名：tcs
+  ctx
+    .command('triangle.chaos [delta:number]', '三角机构：混沌值管理（省略参数显示当前值；正数为消除，负数为增加）')
+    .alias('tcs')
     .action(async ({ session }, delta) => {
       const state = await getOrCreateState(ctx, session!)
       if (delta === undefined || delta === null || Number.isNaN(Number(delta))) {
         return `当前群内混沌指数: ${state.chaos}`
       }
       const old = state.chaos
-      const newValue = old - Number(delta) // 正数消除（减少），负数增加
+      // 正数消除（减少），负数增加；并限制最小为 0
+      const newValue = Math.max(0, old - Number(delta))
       await ctx.database.set('ta-state', { platform: session!.platform, guildId: session!.guildId! }, { chaos: newValue })
       return `当前混沌值: ${old} → ${newValue}`
     })
 
-  ctx.command('tcst <value:number>', '三角机构：设置混沌值为指定数值')
+  // triangle.chaos.set / 别名：tcst
+  ctx
+    .command('triangle.chaos.set <value:number>', '三角机构：设置混沌值为指定数值')
+    .alias('tcst')
     .action(async ({ session }, value) => {
       const state = await getOrCreateState(ctx, session!)
       const old = state.chaos
       const newValue = Number(value)
       if (Number.isNaN(newValue)) return '解析出错：请输入数字'
-      await ctx.database.set('ta-state', { platform: session!.platform, guildId: session!.guildId! }, { chaos: newValue })
+      await ctx.database.set('ta-state', { platform: session!.platform, guildId: session!.guildId! }, { chaos: Math.max(0, newValue) })
       return `当前混沌值: ${old} → ${newValue}`
     })
 
-  // 指令：tfs / tfst （现实改写失败管理）
-  ctx.command('tfs [delta:number]', '三角机构：现实改写失败管理（省略参数显示；正数为消除，负数为增加）')
+  // triangle.fail / 别名：tfs
+  ctx
+    .command('triangle.fail [delta:number]', '三角机构：现实改写失败管理（省略参数显示；正数为消除，负数为增加）')
+    .alias('tfs')
     .action(async ({ session }, delta) => {
       const state = await getOrCreateState(ctx, session!)
       if (delta === undefined || delta === null || Number.isNaN(Number(delta))) {
         return `当前地点现实改写失败次数: ${state.raFail}`
       }
       const old = state.raFail
-      const newValue = old - Number(delta) // 正数消除（减少），负数增加
+      // 正数消除（减少），负数增加；并限制最小为 0
+      const newValue = Math.max(0, old - Number(delta))
       await ctx.database.set('ta-state', { platform: session!.platform, guildId: session!.guildId! }, { raFail: newValue })
       return `当前地点现实改写失败次数: ${old} → ${newValue}`
     })
 
-  ctx.command('tfst <value:number>', '三角机构：设置现实改写失败次数为指定数值')
+  // triangle.fail.set / 别名：tfst
+  ctx
+    .command('triangle.fail.set <value:number>', '三角机构：设置现实改写失败次数为指定数值')
+    .alias('tfst')
     .action(async ({ session }, value) => {
       const state = await getOrCreateState(ctx, session!)
       const old = state.raFail
       const newValue = Number(value)
       if (Number.isNaN(newValue)) return '解析出错：请输入数字'
-      await ctx.database.set('ta-state', { platform: session!.platform, guildId: session!.guildId! }, { raFail: newValue })
+      // 限制最小为 0
+      await ctx.database.set('ta-state', { platform: session!.platform, guildId: session!.guildId! }, { raFail: Math.max(0, newValue) })
       return `当前地点现实改写失败次数: ${old} → ${newValue}`
     })
 
-  // 指令：st 设置属性
-  ctx.command('st <raw:text>', '三角机构：设置角色属性，例：.st 专注3共情3仪态-1')
-    .action(async ({ session }, raw) => {
+  // triangle.stat / 别名：st
+  ctx
+    .command('triangle.stat <raw:text>', '三角机构：设置角色属性，例：.triangle stat 专注3共情3仪态-1')
+    .alias('st')
+    .option('show', '--show 展示当前角色属性')
+    .action(async ({ session, options }, raw) => {
       if (!session?.guildId) return '请在群聊中使用该命令'
-      if (!raw) return '请输入属性设置，如：.st 专注3共情3仪态0'
+
+      // 展示当前角色属性：.triangle stat --show
+      if (options?.show) {
+        const ua = await getOrCreateUserAttrs(ctx, session)
+        const attrs = ua.attrs || {}
+        const keys = Object.keys(attrs)
+        if (keys.length === 0) return '当前未设置任何属性'
+        const list = keys.sort().map(k => `${k}=${attrs[k]}`).join('，')
+        return `当前角色属性：${list}`
+      }
+
+      if (!raw) return '请输入属性设置，如：.triangle stat 专注3共情3仪态0'
 
       const pairs = parseAttrPairs(String(raw))
       if (pairs.length === 0) return '未解析到“属性=数值”对，格式示例：专注3共情-1'
@@ -162,6 +197,20 @@ export function apply(ctx: Context, config: Config) {
 
       await ctx.database.set('ta-attrs', { platform: session.platform, guildId: session.guildId!, userId: session.userId }, { attrs })
       return `已设置属性：${changes.join('，')}`
+    })
+
+  // triangle.stat.show / 别名：st.show
+  ctx
+    .command('triangle.stat.show', '三角机构：展示当前角色属性')
+    .alias('st.show')
+    .action(async ({ session }) => {
+      if (!session?.guildId) return '请在群聊中使用该命令'
+      const ua = await getOrCreateUserAttrs(ctx, session)
+      const attrs = ua.attrs || {}
+      const keys = Object.keys(attrs)
+      if (keys.length === 0) return '当前未设置任何属性'
+      const list = keys.sort().map(k => `${k}=${attrs[k]}`).join('，')
+      return `当前角色属性：${list}`
     })
 }
 
@@ -200,7 +249,8 @@ async function runCheck(ctx: Context, config: Config, session: Session, attrInpu
   const attributeValueNum = Number(attributeValue)
   const state = await getOrCreateState(ctx, session)
 
-  const failureBurnout = isTR ? state.raFail : 0
+  // raFail 可能因管理命令被调成负数，运行期一律按 0 处理，避免出现负数燃尽
+  const failureBurnout = isTR ? Math.max(0, state.raFail) : 0
   const abilityBurnout = attributeValueNum > 0 ? 0 : Math.abs(attributeValueNum) + 1
   const totalBurnout = abilityBurnout + failureBurnout
 
@@ -278,12 +328,14 @@ function roll6d4(): number[] {
 
 // 结果标注：3 => 3 / 被燃尽的 3 => 3x / 其他 => nx；若燃尽剩余，附加空位 x 的计数
 function markResults(intermediate: number[], burnout: number): string {
+  // 保护：负数燃尽在展示上当作 0 处理，避免 String.repeat 抛出 RangeError
+  let pending = Math.max(0, burnout)
   const out: string[] = []
   for (const n of intermediate) {
     if (n === 3) {
-      if (burnout > 0) {
+      if (pending > 0) {
         out.push('3x')
-        burnout--
+        pending--
       } else {
         out.push('3')
       }
@@ -291,7 +343,7 @@ function markResults(intermediate: number[], burnout: number): string {
       out.push(`${n}x`)
     }
   }
-  return burnout === 0 ? `[${out.join(',')}]` : `[${out.join(',')}] ${'x'.repeat(burnout)}`
+  return pending === 0 ? `[${out.join(',')}]` : `[${out.join(',')}] ${'x'.repeat(pending)}`
 }
 
 // 前缀与消息中的变量替换

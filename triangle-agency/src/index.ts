@@ -13,9 +13,11 @@ export interface Config {
   successMsg: string
   failureMsg: string
   bigSuccessMsg: string
+  adjustedBigSuccessMsg: string
   successShortMsg: string
   failureShortMsg: string
   bigSuccessShortMsg: string
+  adjustedBigSuccessShortMsg: string
   excessiveMsg: string
 }
 
@@ -27,9 +29,11 @@ export const Config: Schema<Config> = Schema.object({
   successMsg: Schema.string().default('这一瞬间，现实为你而扭曲。').description('成功时的提示语'),
   failureMsg: Schema.string().default('它冰冷而不可撼动，仿若一座黑色的方尖碑。').description('失败时的提示语'),
   bigSuccessMsg: Schema.string().default('三尖冠——天命昭昭。').description('大成功时的提示语'),
+  adjustedBigSuccessMsg: Schema.string().default('现实在你的注视下驯服了。').description('调整后三个3（燃尽后恰好3个3）时的提示语'),
   successShortMsg: Schema.string().default('成功').description('成功时的简短提示语'),
   failureShortMsg: Schema.string().default('失败').description('失败时的简短提示语'),
   bigSuccessShortMsg: Schema.string().default('大成功').description('大成功时的简短提示语'),
+  adjustedBigSuccessShortMsg: Schema.string().default('成功（不产生混沌）').description('调整后三个3时的简短提示语'),
   excessiveMsg: Schema.string().default('检定轮数过多，机构不予支持。').description('多次检定超过上限时的提示语'),
 }).description('三角机构（Triangle Agency）规则配置')
 
@@ -41,10 +45,39 @@ interface TAState {
   raFail: number
 }
 
+// 数据表：存储用户上次掷骰结果，供 qa 指令回溯修改
+interface TALastRoll {
+  platform: string
+  guildId: string
+  userId: string
+  /** 原始 6D4 结果 */
+  dice: number[]
+  /** 总燃尽 */
+  totalBurnout: number
+  /** 是否为现实改写 (TR) */
+  isTR: boolean
+  /** 掷骰时使用的属性值 */
+  attributeValue: number
+  /** 掷骰时使用的属性文本 */
+  attrText: string
+  /** 该次掷骰产生的混沌 */
+  chaosGenerated: number
+  /** 该次掷骰产生的改写失败 */
+  failGenerated: number
+  /** 掷骰前的混沌值 */
+  chaosBefore: number
+  /** 掷骰前的改写失败值 */
+  raFailBefore: number
+  /** 已使用 qa 调整的 3 的数量变化（正=增加3，负=减少3） */
+  qaAdjustment: number
+}
+
 declare module 'koishi' {
   interface Tables {
     'ta-state': TAState
     'ta-attrs': TAUserAttrs
+    'ta-profile': TAProfile
+    'ta-last-roll': TALastRoll
   }
 }
 
@@ -69,6 +102,39 @@ export function apply(ctx: Context, config: Config) {
       guildId: 'string',
       userId: 'string',
       attrs: 'json',
+    },
+    { primary: ['platform', 'guildId', 'userId'] },
+  )
+
+  // 用户档案表（每群每用户自定义显示名）
+  ctx.model.extend(
+    'ta-profile',
+    {
+      platform: 'string',
+      guildId: 'string',
+      userId: 'string',
+      displayName: 'string',
+    },
+    { primary: ['platform', 'guildId', 'userId'] },
+  )
+
+  // 上次掷骰记录表（每群每用户，供 qa 指令回溯）
+  ctx.model.extend(
+    'ta-last-roll',
+    {
+      platform: 'string',
+      guildId: 'string',
+      userId: 'string',
+      dice: 'json',
+      totalBurnout: 'integer',
+      isTR: 'boolean',
+      attributeValue: 'integer',
+      attrText: 'string',
+      chaosGenerated: 'integer',
+      failGenerated: 'integer',
+      chaosBefore: 'integer',
+      raFailBefore: 'integer',
+      qaAdjustment: 'integer',
     },
     { primary: ['platform', 'guildId', 'userId'] },
   )
@@ -182,17 +248,20 @@ export function apply(ctx: Context, config: Config) {
 
       if (!raw) return '请输入属性设置，如：.triangle stat 专注3共情3仪态0'
 
-      const pairs = parseAttrPairs(String(raw))
+      // 变更：带 +/- 号表示“增量调整”，无符号表示“直接设定”
+      const pairs = parseAttrPairsWithDelta(String(raw))
       if (pairs.length === 0) return '未解析到“属性=数值”对，格式示例：专注3共情-1'
 
       const ua = await getOrCreateUserAttrs(ctx, session)
       const attrs = { ...(ua.attrs || {}) }
       const changes: string[] = []
 
-      for (const [nameRaw, val] of pairs) {
-        const canon = resolveAttrName(nameRaw) || nameRaw
-        attrs[canon] = val
-        changes.push(`${canon}=${val}`)
+      for (const { name, value, isDelta } of pairs) {
+        const canon = normalizeAttrName(name)
+        const oldVal = Number(attrs[canon] ?? 0)
+        const newVal = isDelta ? oldVal + value : value
+        attrs[canon] = newVal
+        changes.push(isDelta ? `${canon}${value >= 0 ? '+' : ''}${value}→${newVal}` : `${canon}=${newVal}`)
       }
 
       await ctx.database.set('ta-attrs', { platform: session.platform, guildId: session.guildId!, userId: session.userId }, { attrs })
@@ -227,10 +296,9 @@ export function apply(ctx: Context, config: Config) {
       if (name) {
         const raw = String(name).trim()
         if (!raw) return '请输入要清理的属性名称，或省略名称以清理数值为 0 的属性'
-        const canon = resolveAttrName(raw)
         const rawLower = raw.toLowerCase()
         for (const key of Object.keys(attrs)) {
-          if (key === raw || key.toLowerCase() === rawLower || (canon && key === canon)) {
+          if (key === raw || key.toLowerCase() === rawLower) {
             removed.push(key)
             delete attrs[key]
           }
@@ -249,6 +317,169 @@ export function apply(ctx: Context, config: Config) {
       await ctx.database.set('ta-attrs', { platform: session.platform, guildId: session.guildId!, userId: session.userId }, { attrs })
       return `已清理属性：${removed.sort().join('，')}`
     })
+
+  // triangle.qa / 别名：qa
+  ctx
+    .command('triangle.qa <raw:text>', '三角机构：质保调整——消耗属性修改上次掷骰中3的数量（.triangle qa <属性名> <变更数量>）')
+    .alias('qa')
+    .example('.triangle qa 专注2')
+    .example('.qa 专注 2')
+    .example('.qa 专注-2')
+    .action(async ({ session }, raw) => {
+      if (!session?.guildId) return '请在群聊中使用该命令'
+      if (!raw) return '请输入属性名和变更数量，如：.qa 专注2 或 .qa 专注 -2'
+
+      // 解析参数：支持 "属性名数字" 或 "属性名 数字"
+      const parsed = parseQaInput(String(raw).trim())
+      if (!parsed) return '无法解析参数，格式示例：.qa 专注2 或 .qa 专注 -2'
+      const { attrName, delta } = parsed
+
+      if (delta === 0) return '变更数量不能为 0'
+      const absDelta = Math.abs(delta)
+      if (absDelta > 6) return '单次调整数量不能超过 6（骰子总数为 6）'
+
+      // 读取上次掷骰记录
+      const { platform, guildId, userId } = session
+      const rollRows = await ctx.database.get('ta-last-roll', { platform, guildId, userId })
+      if (!rollRows.length) return '没有找到你的上次掷骰记录，请先进行一次检定'
+      const lastRoll = rollRows[0]
+
+      // 解析属性名并读取当前属性值
+      const canon = normalizeAttrName(attrName)
+      const ua = await getOrCreateUserAttrs(ctx, session)
+      const attrs = { ...(ua.attrs || {}) }
+      const currentAttrVal = Number(attrs[canon] ?? 0)
+
+      if (currentAttrVal <= 0) return `属性"${canon}"当前值为 ${currentAttrVal}，不足以使用质保`
+      if (absDelta > currentAttrVal) return `属性"${canon}"当前值为 ${currentAttrVal}，不足以消耗 ${absDelta} 点`
+
+      // 计算原始骰子中 3 的数量
+      const dice = lastRoll.dice
+      const originalThrees = dice.filter(v => v === 3).length
+      const prevQaAdj = lastRoll.qaAdjustment || 0
+      // 当前经过之前 qa 调整后的等效 3 数量
+      const effectiveThrees = originalThrees + prevQaAdj
+
+      if (delta > 0) {
+        // 增加 3：需要骰子中有足够的非 3 可以改为 3
+        const nonThrees = 6 - effectiveThrees
+        if (delta > nonThrees) return `当前骰子中仅有 ${nonThrees} 个非3结果可供修改，无法增加 ${delta} 个3`
+      } else {
+        // 减少 3：需要骰子中有足够的 3 可以改为非 3
+        if (absDelta > effectiveThrees) return `当前骰子中仅有 ${effectiveThrees} 个3，无法减少 ${absDelta} 个3`
+      }
+
+      // 扣减属性
+      const newAttrVal = currentAttrVal - absDelta
+      attrs[canon] = newAttrVal
+      await ctx.database.set('ta-attrs', { platform, guildId, userId }, { attrs })
+
+      // 更新 qa 调整量
+      const newQaAdj = prevQaAdj + delta
+      const newEffectiveThrees = originalThrees + newQaAdj
+
+      // 重新计算混沌和失败
+      const totalBurnout = lastRoll.totalBurnout
+      const isTR = lastRoll.isTR
+      const threeCountBurned = newEffectiveThrees - totalBurnout
+
+      let newChaos: number
+      let newFail: number
+      // 大成功：调整后恰好 3 个有效 3 且无燃尽影响，或燃尽后恰好 3 个
+      if (newEffectiveThrees === 3 && totalBurnout === 0) {
+        newChaos = 0
+        newFail = 0
+      } else if (threeCountBurned === 3) {
+        newChaos = 0
+        newFail = 0
+      } else if (threeCountBurned > 0) {
+        newChaos = Math.max(0, 6 - threeCountBurned)
+        newFail = 0
+      } else {
+        newChaos = Math.max(0, 6 - threeCountBurned)
+        newFail = isTR ? 1 : 0
+      }
+
+      // 计算与原先记录的差值并更新群状态
+      const oldChaos = lastRoll.chaosGenerated
+      const oldFail = lastRoll.failGenerated
+      const chaosDiff = newChaos - oldChaos
+      const failDiff = newFail - oldFail
+
+      const state = await getOrCreateState(ctx, session)
+      const updatedChaos = Math.max(0, state.chaos + chaosDiff)
+      const updatedRaFail = Math.max(0, state.raFail + failDiff)
+      await ctx.database.set('ta-state', { platform, guildId }, { chaos: updatedChaos, raFail: updatedRaFail })
+
+      // 更新掷骰记录
+      await ctx.database.set('ta-last-roll', { platform, guildId, userId }, {
+        qaAdjustment: newQaAdj,
+        chaosGenerated: newChaos,
+        failGenerated: newFail,
+      })
+
+      // 构造回复
+      const player = await getDisplayName(ctx, session)
+      const effectiveDice = buildEffectiveDice(dice, newQaAdj)
+      const markedResult = markResults([...effectiveDice], totalBurnout)
+
+      let resultText: string
+      if (newEffectiveThrees === 3 && totalBurnout === 0) {
+        resultText = config.bigSuccessMsg
+      } else if (threeCountBurned === 3) {
+        resultText = config.adjustedBigSuccessMsg
+      } else if (threeCountBurned > 0) {
+        resultText = config.successMsg
+      } else {
+        resultText = config.failureMsg
+      }
+
+      const lines = [
+        `${player}消耗了 ${absDelta} 点"${canon}"（${currentAttrVal}→${newAttrVal}），${delta > 0 ? '增加' : '减少'}了 ${absDelta} 个3。`,
+        `调整后结果：6D4=${markedResult} ${resultText}`,
+        `混沌变化：${oldChaos}→${newChaos}（群内混沌：${updatedChaos}）`,
+      ]
+      if (isTR) {
+        lines.push(`改写失败变化：${oldFail}→${newFail}（群内改写失败：${updatedRaFail}）`)
+      }
+      return lines.join('\n')
+    })
+
+  // triangle.name / 别名：tpc.new
+  ctx
+    .command('triangle.name <name:text>', '三角机构：设置你的角色名（仅当前群内生效）')
+    .alias('tpc.new')
+    .option('show', '--show 展示当前角色名')
+    .option('clear', '--clear 清除已设置的角色名')
+    .action(async ({ session, options }, name) => {
+      if (!session?.guildId) return '请在群聊中使用该命令'
+
+      // 展示当前
+      if (options?.show) {
+        const prof = await getProfile(ctx, session)
+        const cur = prof?.displayName || session.username || session.userId
+        return `当前角色名：${cur}${prof?.displayName ? '' : '（默认）'}`
+      }
+
+      // 清除设置
+      if (options?.clear) {
+        await ctx.database.remove('ta-profile', { platform: session.platform, guildId: session.guildId!, userId: session.userId })
+        const fallback = session.username || session.userId
+        return `已清除自定义角色名，当前角色名：${fallback}`
+      }
+
+      const newName = String(name ?? '').trim()
+      if (!newName) return '请输入角色名，例如：.tpc.new 阿格尼丝'
+
+      const { platform, guildId, userId } = session
+      const rows = await ctx.database.get('ta-profile', { platform, guildId: guildId!, userId })
+      if (rows.length) {
+        await ctx.database.set('ta-profile', { platform, guildId: guildId!, userId }, { displayName: newName })
+      } else {
+        await ctx.database.create('ta-profile', { platform, guildId: guildId!, userId, displayName: newName })
+      }
+      return `已更新角色名为：${newName}`
+    })
 }
 
 // 运行一次检定/改写
@@ -261,7 +492,7 @@ async function runCheck(ctx: Context, config: Config, session: Session, attrInpu
   }
 
   if (!attrInput && attrInput !== '0') {
-    return '请提供属性名或质保数量（整数，可为负）'
+    return '请提供属性名或质保数量'
   }
 
   // 支持数字或属性名
@@ -270,8 +501,8 @@ async function runCheck(ctx: Context, config: Config, session: Session, attrInpu
   if (/^[+-]?\d+$/.test(attrInput)) {
     attributeValue = Number(attrInput)
   } else {
-    // 解析属性名：先用别名映射到规范名，再读取用户属性
-    const canon = resolveAttrName(attrInput) || attrInput
+    // 解析属性名：不再做输入别名映射，按属性原名读取
+    const canon = normalizeAttrName(attrInput)
     const ua = await getOrCreateUserAttrs(ctx, session)
     const stored = (ua.attrs || {})[canon]
     if (typeof stored === 'number') {
@@ -294,6 +525,10 @@ async function runCheck(ctx: Context, config: Config, session: Session, attrInpu
   let chaosGeneratedTotal = 0
   let failuresGeneratedTotal = 0
   const results: string[] = []
+  // 仅单次掷骰时保存原始骰子供 qa 回溯
+  let singleDice: number[] | null = null
+  let singleChaos = 0
+  let singleFail = 0
 
   for (let i = 0; i < times; i++) {
     const intermediate = roll6d4()
@@ -301,21 +536,39 @@ async function runCheck(ctx: Context, config: Config, session: Session, attrInpu
     const threeCountBurned = threeCountOriginal - totalBurnout
     const markedIntermediate = markResults([...intermediate], totalBurnout)
 
+    let thisChaos = 0
+    let thisFail = 0
+
     const useShort = times > 1
     // 大成功：必须为原始掷骰恰好 3 个 3（不能由 4 个以上通过燃尽变为 3）
     if (threeCountOriginal === 3) {
   const msg = useShort ? config.bigSuccessShortMsg : config.bigSuccessMsg
   results.push(`6D4=${markedIntermediate} ${formatWith(ctx, session, msg)}`)
       // chaos stays unchanged
+    } else if (threeCountBurned === 3) {
+      // 燃尽后恰好剩余 3 个 3：成功且不增加混沌（区别于原生大成功）
+  const msg = useShort ? config.adjustedBigSuccessShortMsg : config.adjustedBigSuccessMsg
+  results.push(`6D4=${markedIntermediate} ${formatWith(ctx, session, msg)}`)
+      // chaos stays unchanged
     } else if (threeCountBurned > 0) {
   const msg = useShort ? config.successShortMsg : config.successMsg
   results.push(`6D4=${markedIntermediate} ${formatWith(ctx, session, msg)}`)
-      chaosGeneratedTotal += 6 - threeCountBurned
+      thisChaos = 6 - threeCountBurned
     } else {
   const msg = useShort ? config.failureShortMsg : config.failureMsg
   results.push(`6D4=${markedIntermediate} ${formatWith(ctx, session, msg)}`)
-      chaosGeneratedTotal += 6 - threeCountBurned
-      if (isTR) failuresGeneratedTotal += 1
+      thisChaos = 6 - threeCountBurned
+      if (isTR) thisFail = 1
+    }
+
+    chaosGeneratedTotal += thisChaos
+    failuresGeneratedTotal += thisFail
+
+    // 记录单次掷骰（仅 times===1 时有效）
+    if (times === 1) {
+      singleDice = [...intermediate]
+      singleChaos = thisChaos
+      singleFail = thisFail
     }
   }
 
@@ -335,7 +588,31 @@ async function runCheck(ctx: Context, config: Config, session: Session, attrInpu
     })
   }
 
+  // 单次掷骰时保存记录供 qa 指令回溯
+  if (singleDice && times === 1) {
+    const rollData = {
+      dice: singleDice,
+      totalBurnout,
+      isTR,
+      attributeValue: attributeValueNum,
+      attrText,
+      chaosGenerated: options?.c ? 0 : singleChaos,
+      failGenerated: options?.f ? 0 : singleFail,
+      chaosBefore: state.chaos,
+      raFailBefore: state.raFail,
+      qaAdjustment: 0,
+    }
+    const rollKey = { platform: session.platform, guildId: session.guildId!, userId: session.userId }
+    const existingRoll = await ctx.database.get('ta-last-roll', rollKey)
+    if (existingRoll.length) {
+      await ctx.database.set('ta-last-roll', rollKey, rollData)
+    } else {
+      await ctx.database.create('ta-last-roll', { ...rollKey, ...rollData })
+    }
+  }
+
   const prefix = formatWith(ctx, session, config.checkPrefix, {
+    player: await getDisplayName(ctx, session),
     attrText,
   })
   const suffix = !isTR
@@ -400,33 +677,9 @@ function clampInt(v: any, min: number, max: number) {
 
 // ====== 属性解析与存储 ======
 
-// 三角机构的默认属性与别名（来自原插件）
-const TA_BASE_ATTRS = ['专注', '共情', '仪态', '顽固', '双面', '先机', '敬业', '外向', '精微'] as const
-type CanonAttr = typeof TA_BASE_ATTRS[number]
-
-const TA_ALIAS: Record<CanonAttr, string[]> = {
-  专注: ['ATT'],
-  共情: ['EMP'],
-  仪态: ['存在', 'PRE'],
-  顽固: ['PER'],
-  双面: ['DUP'],
-  先机: ['INI'],
-  敬业: ['专业', 'PRO'],
-  外向: ['外放', 'DYN'],
-  精微: ['SUB'],
-}
-
-// 建立别名映射（小写匹配；包含规范名自身）
-const aliasMap = new Map<string, CanonAttr>()
-for (const canon of TA_BASE_ATTRS) {
-  aliasMap.set(canon.toLowerCase(), canon)
-  for (const a of TA_ALIAS[canon] || []) aliasMap.set(a.toLowerCase(), canon)
-}
-
-function resolveAttrName(name: string): CanonAttr | null {
-  if (!name) return null
-  const key = name.trim().toLowerCase()
-  return (aliasMap.get(key) as CanonAttr) || null
+// 属性名标准化：仅做首尾空白清理，不做任何同义词/别名映射
+function normalizeAttrName(name: string): string {
+  return String(name || '').trim()
 }
 
 // 解析输入字符串中的“名称+整数”对，如：专注3共情-1 仪态0
@@ -444,6 +697,109 @@ function parseAttrPairs(raw: string): Array<[string, number]> {
   return out
 }
 
+// 新增：解析并标注是否为"增量调整"(首字符带 +/- 为增量)
+// 支持两种格式：
+//   1. 紧凑格式："专注3共情-1"（属性名与数值紧挨）
+//   2. 空格分隔格式："专注 3 共情 -1"（属性名与数值间有空格）
+function parseAttrPairsWithDelta(raw: string): Array<{ name: string; value: number; isDelta: boolean }> {
+  const s = String(raw).trim()
+  const out: Array<{ name: string; value: number; isDelta: boolean }> = []
+
+  // 按空格拆分 token 进行解析
+  const tokens = s.split(/\s+/)
+  let i = 0
+  while (i < tokens.length) {
+    const tok = tokens[i]
+    // 情况 1：当前 token 本身是 "属性名数值" 的紧凑格式
+    const compactMatch = tok.match(/^([^\d+-]+)([+-]?\d+)$/)
+    if (compactMatch) {
+      const name = compactMatch[1].trim()
+      const token = compactMatch[2]
+      const val = parseInt(token, 10)
+      if (name && !Number.isNaN(val)) {
+        out.push({ name, value: val, isDelta: /^[+-]/.test(token) })
+      }
+      i++
+      continue
+    }
+    // 情况 2：当前 token 是纯属性名，下一个 token 是数值
+    if (!/[\d+-]/.test(tok) && i + 1 < tokens.length) {
+      const nextTok = tokens[i + 1]
+      if (/^[+-]?\d+$/.test(nextTok)) {
+        const name = tok.trim()
+        const val = parseInt(nextTok, 10)
+        if (name && !Number.isNaN(val)) {
+          out.push({ name, value: val, isDelta: /^[+-]/.test(nextTok) })
+        }
+        i += 2
+        continue
+      }
+    }
+    // 情况 3：可能是连续的紧凑格式无空格（如 "专注3共情-1" 整体作为一个 token）
+    // 对该 token 用正则提取多组
+    const reg = /([^\d+-]+)([+-]?\d+)/g
+    let m: RegExpExecArray | null
+    while ((m = reg.exec(tok))) {
+      const name = m[1].trim()
+      const token = m[2]
+      if (!name) continue
+      const val = parseInt(token, 10)
+      if (Number.isNaN(val)) continue
+      out.push({ name, value: val, isDelta: /^[+-]/.test(token) })
+    }
+    i++
+  }
+
+  return out
+}
+
+// 解析 qa 指令输入：支持 "属性名数字" 或 "属性名 数字"
+function parseQaInput(raw: string): { attrName: string; delta: number } | null {
+  // 尝试紧凑格式："专注2" 或 "专注-2"
+  const compact = raw.match(/^([^\d+-]+)([+-]?\d+)$/)
+  if (compact) {
+    const attrName = compact[1].trim()
+    const delta = parseInt(compact[2], 10)
+    if (attrName && !Number.isNaN(delta)) return { attrName, delta }
+  }
+
+  // 尝试空格分隔格式："专注 2" 或 "专注 -2"
+  const tokens = raw.split(/\s+/)
+  if (tokens.length === 2) {
+    const attrName = tokens[0].trim()
+    const delta = parseInt(tokens[1], 10)
+    if (attrName && !Number.isNaN(delta)) return { attrName, delta }
+  }
+
+  return null
+}
+
+// 根据 qa 调整量构造等效骰子数组（用于展示）
+// qaAdj > 0：将一些非 3 改为 3；qaAdj < 0：将一些 3 改为非 3
+function buildEffectiveDice(originalDice: number[], qaAdj: number): number[] {
+  const dice = [...originalDice]
+  if (qaAdj > 0) {
+    // 增加 3：把一些非 3 的结果改为 3
+    let remaining = qaAdj
+    for (let i = 0; i < dice.length && remaining > 0; i++) {
+      if (dice[i] !== 3) {
+        dice[i] = 3
+        remaining--
+      }
+    }
+  } else if (qaAdj < 0) {
+    // 减少 3：把一些 3 改为非 3（标记为 1，仅用于计数展示）
+    let remaining = Math.abs(qaAdj)
+    for (let i = 0; i < dice.length && remaining > 0; i++) {
+      if (dice[i] === 3) {
+        dice[i] = 1  // 改为非 3 值
+        remaining--
+      }
+    }
+  }
+  return dice
+}
+
 // 用户属性表类型与读写
 interface TAUserAttrs {
   platform: string
@@ -459,4 +815,24 @@ async function getOrCreateUserAttrs(ctx: Context, session: Session): Promise<TAU
   const init: TAUserAttrs = { platform, guildId: guildId!, userId, attrs: {} }
   await ctx.database.create('ta-attrs', init)
   return init
+}
+
+// 用户档案：自定义显示名
+interface TAProfile {
+  platform: string
+  guildId: string
+  userId: string
+  displayName: string
+}
+
+async function getProfile(ctx: Context, session: Session): Promise<TAProfile | null> {
+  const { platform, guildId, userId } = session
+  if (!guildId) return null
+  const rows = await ctx.database.get('ta-profile', { platform, guildId, userId })
+  return rows[0] || null
+}
+
+async function getDisplayName(ctx: Context, session: Session): Promise<string> {
+  const prof = await getProfile(ctx, session)
+  return prof?.displayName || session.username || session.userId
 }
